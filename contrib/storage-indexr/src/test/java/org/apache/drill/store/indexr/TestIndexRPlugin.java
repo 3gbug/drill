@@ -24,15 +24,15 @@ import org.junit.Test;
 public class TestIndexRPlugin extends BaseTestQuery {
 
     @Test
-    public void testBasicQuery() throws Exception {
-        System.out.println("testBasicQuery");
-        test("select * from indexr.campaign;");
-    }
-
-    @Test
-    public void testDescribe() throws Exception {
+    public void testIndexr() throws Exception {
         test("use indexr;");
         test("show tables;");
         test("describe campaign");
+
+        System.out.println("select * from indexr.campaign;");
+        test("select campaign_id, impressions from indexr.campaign limit 10;");
+        test("select count(*) from indexr.campaign;");
+
     }
+
 }

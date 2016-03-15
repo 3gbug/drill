@@ -17,10 +17,14 @@
  */
 package org.apache.drill.exec.store.indexr;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.drill.common.JSONOptions;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.physical.base.AbstractGroupScan;
+import org.apache.drill.exec.physical.base.GroupScan;
 import org.apache.drill.exec.server.DrillbitContext;
 import org.apache.drill.exec.store.AbstractStoragePlugin;
 import org.apache.drill.exec.store.SchemaConfig;
@@ -47,7 +51,7 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
 
         this.schemaFactory = new IndexRSchemaFactory(this);
         try {
-            this.segmentManager = new FakeSegmentManager(this, engineConfig.getDataDir());
+            this.segmentManager = new FakeSegmentManager(engineConfig.getDataDir());
         } catch (IOException e) {
             log.warn("", e);
             throw new RuntimeException(e);
@@ -97,8 +101,13 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
     }
 
     @Override
+    public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection) throws IOException {
+        return getPhysicalScan(userName, selection, GroupScan.ALL_COLUMNS);
+    }
+
+    @Override
     public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection, List<SchemaPath> columns) throws IOException {
-        // TODO
-        return null;
+        IndexRScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<IndexRScanSpec>() {});
+        return new IndexRGroupScan(this, scanSpec, columns);
     }
 }

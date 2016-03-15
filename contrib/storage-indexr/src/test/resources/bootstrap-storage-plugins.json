@@ -2,7 +2,7 @@
   "storage":{
     indexr : {
       type:"indexr",
-      enabled: false,
+      enabled: true,
       dataDir: "/data/indexr/segments"
     }
   }

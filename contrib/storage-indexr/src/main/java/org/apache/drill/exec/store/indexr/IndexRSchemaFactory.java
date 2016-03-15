@@ -63,7 +63,7 @@ public class IndexRSchemaFactory implements SchemaFactory {
         public Table getTable(String name) {
             IndexRScanSpec spec = new IndexRScanSpec(name);
             try {
-                return plugin.segmentManager().getTable(name, spec);
+                return plugin.segmentManager().getTable(plugin, name, spec);
             } catch (IOException e) {
                 log.warn(String.format("Find table [%s] error!", name), e);
             }

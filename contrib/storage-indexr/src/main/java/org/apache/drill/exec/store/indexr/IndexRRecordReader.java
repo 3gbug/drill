@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p/>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -60,6 +60,7 @@ public class IndexRRecordReader extends AbstractRecordReader {
 
     private ProjectedColumnInfo[] projectedColumnInfos;
     private Iterator<Row> segmentRowItr;
+    private long curRowIndex = 0;
 
     private static class ProjectedColumnInfo {
         int ordinal;
@@ -67,7 +68,6 @@ public class IndexRRecordReader extends AbstractRecordReader {
         ValueVector valueVector;
 
         Column column;
-        long curIndex;
 
         public ProjectedColumnInfo(int ordinal, byte dataType, ValueVector valueVector, Column column) {
             this.ordinal = ordinal;
@@ -184,23 +184,23 @@ public class IndexRRecordReader extends AbstractRecordReader {
             BytePiece bytePiece = new BytePiece();
             ByteBuffer byteBuffer = MemoryUtil.getHollowDirectByteBuffer();
             int rowCount = 0;
-            while (rowCount < TARGET_RECORD_COUNT && rowCount < segment.rowCount()) {
+            while (rowCount < TARGET_RECORD_COUNT && curRowIndex < segment.rowCount()) {
                 for (ProjectedColumnInfo info : projectedColumnInfos) {
                     switch (info.dataType) {
                         case ColumnType.Int:
-                            ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.intValueAt(info.curIndex++));
+                            ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.intValueAt(curRowIndex));
                             break;
                         case ColumnType.Long:
-                            ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.longValueAt(info.curIndex++));
+                            ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.longValueAt(curRowIndex));
                             break;
                         case ColumnType.Float:
-                            ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.floatValueAt(info.curIndex++));
+                            ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.floatValueAt(curRowIndex));
                             break;
                         case ColumnType.Double:
-                            ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.doubleValueAt(info.curIndex++));
+                            ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.doubleValueAt(curRowIndex));
                             break;
                         case ColumnType.String:
-                            info.column.rawValueAt(info.curIndex++, bytePiece);
+                            info.column.rawValueAt(curRowIndex, bytePiece);
                             MemoryUtil.setByteBuffer(byteBuffer, bytePiece.addr, bytePiece.len, null);
                             ((VarCharVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, byteBuffer, 0, byteBuffer.remaining());
                             break;
@@ -209,6 +209,7 @@ public class IndexRRecordReader extends AbstractRecordReader {
                     }
                 }
                 rowCount++;
+                curRowIndex++;
             }
             return rowCount;
         }

@@ -45,16 +45,15 @@ public class FakeSegmentManager {
     private static final Logger log = LoggerFactory.getLogger(FakeSegmentManager.class);
 
     private String dataDir;
-    private IndexRStoragePlugin plugin;
 
     private Map<String, FakeTable> tables;
 
-    public FakeSegmentManager(IndexRStoragePlugin plugin, String dataDir) throws IOException {
-        this.plugin = plugin;
+    public FakeSegmentManager(String dataDir) throws IOException {
         this.dataDir = dataDir;
 
         tables = new HashMap<>();
         init();
+        showTables();
     }
 
     private void init() throws IOException {
@@ -74,6 +73,18 @@ public class FakeSegmentManager {
         });
     }
 
+    private void showTables() {
+        System.out.println("FakeSegmentManager tables:");
+        tables.values().forEach(table -> {
+            System.out.println("======================");
+            System.out.println(String.format("table: %s", table.schema.name));
+            System.out.println("segments:");
+            table.idToSegment.values().forEach(segment -> {
+                System.out.println(segment.toString());
+            });
+        });
+    }
+
     private Stream<Path> tablePaths() throws IOException {
         return Files.list(Paths.get(dataDir)).filter(p -> Files.isDirectory(p) && pathLastName(p).startsWith("table_"));
     }
@@ -86,7 +97,7 @@ public class FakeSegmentManager {
         return tables.keySet();
     }
 
-    public DrillIndexRTable getTable(String name, IndexRScanSpec spec) throws IOException {
+    public DrillIndexRTable getTable(IndexRStoragePlugin plugin, String name, IndexRScanSpec spec) throws IOException {
         FakeTable table = tables.get(name.toLowerCase());
         if (table == null) {
             return null;
@@ -122,9 +133,9 @@ public class FakeSegmentManager {
                 : table.idToSegment.size();
     }
 
-    private static class FakeTable {
-        final SegmentSchema schema;
-        final Map<String, Segment> idToSegment;
+    public static class FakeTable {
+        public final SegmentSchema schema;
+        public final Map<String, Segment> idToSegment;
 
         public FakeTable(SegmentSchema schema, Map<String, Segment> idToSegment) {
             this.schema = schema;

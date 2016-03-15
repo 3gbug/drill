@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
+ * <p/>
  * http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p/>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -31,6 +31,7 @@ import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.physical.PhysicalOperatorSetupException;
 import org.apache.drill.exec.physical.base.AbstractGroupScan;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
+import org.apache.drill.exec.physical.base.ScanStats;
 import org.apache.drill.exec.physical.base.SubScan;
 import org.apache.drill.exec.proto.CoordinationProtos.DrillbitEndpoint;
 import org.apache.drill.exec.store.StoragePluginRegistry;
@@ -43,7 +44,7 @@ import java.util.List;
 public class IndexRGroupScan extends AbstractGroupScan {
     private final IndexRStoragePlugin plugin;
     private final IndexRScanSpec scanSpec;
-    private final List<SchemaPath> columns;
+    private List<SchemaPath> columns;
 
     private ListMultimap<Integer, String> assignments;
 
@@ -71,6 +72,17 @@ public class IndexRGroupScan extends AbstractGroupScan {
         this.scanSpec = that.scanSpec;
         this.plugin = that.plugin;
         this.assignments = that.assignments;
+    }
+
+    @Override
+    public IndexRGroupScan clone(List<SchemaPath> columns) {
+        IndexRGroupScan newScan = new IndexRGroupScan(this);
+        newScan.columns = columns;
+        return newScan;
+    }
+
+    public IndexRStoragePlugin getStoragePlugin() {
+        return plugin;
     }
 
     @JsonProperty("storage")
@@ -102,6 +114,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
     @Override
     public String toString() {
         return "IndexRGroupScan [IndexRScanSpec=" + scanSpec + ", columns=" + columns + "]";
+    }
+
+    @Override
+    public ScanStats getScanStats() {
+        long recordCount = 100000 * 10;
+        return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, recordCount, 1, recordCount);
     }
 
     @Override
