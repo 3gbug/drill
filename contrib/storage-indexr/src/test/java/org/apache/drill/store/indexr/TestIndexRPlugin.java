@@ -26,13 +26,12 @@ public class TestIndexRPlugin extends BaseTestQuery {
     @Test
     public void testIndexr() throws Exception {
         test("use indexr;");
-        test("show tables;");
-        test("describe campaign");
+        //test("show tables;");
+        //test("describe campaign");
 
-        System.out.println("select * from indexr.campaign;");
-        test("select campaign_id, impressions from indexr.campaign limit 10;");
-        test("select count(*) from indexr.campaign;");
-
+        //test("select * from indexr.campaign limit 10;");
+        test("select campaign_id, sum(impressions), avg(cost), max(clicks) from indexr.campaign group by campaign_id order by sum(impressions) desc limit 10;");
+        //test("select count(*) from indexr.campaign;");
     }
 
 }

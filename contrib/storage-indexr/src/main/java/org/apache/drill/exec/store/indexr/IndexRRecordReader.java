@@ -116,13 +116,17 @@ public class IndexRRecordReader extends AbstractRecordReader {
             }
         } else {
             projectedColumnInfos = new ProjectedColumnInfo[this.getColumns().size()];
-            int ordinal = 0;
+            int count = 0;
             for (SchemaPath schemaPath : this.getColumns()) {
                 String colName = StringUtils.removeStart(
                         schemaPath.getAsUnescapedPath().toLowerCase(),
                         segment.schema().name + "."); // remove the table name.
+                int[] ordinal = new int[]{-1};
                 ColumnSchema cs = schemas.stream().filter(
-                        s -> s.name.equalsIgnoreCase(colName))
+                        s -> {
+                            ordinal[0]++;
+                            return s.name.equalsIgnoreCase(colName);
+                        })
                         .findFirst().get();
                 if (cs == null) {
                     throw new RuntimeException(String.format(
@@ -132,8 +136,8 @@ public class IndexRRecordReader extends AbstractRecordReader {
                             schemas
                     ));
                 }
-                projectedColumnInfos[ordinal] = genPCI(ordinal, cs.dataType, cs.name, output);
-                ordinal++;
+                projectedColumnInfos[count] = genPCI(ordinal[0], cs.dataType, cs.name, output);
+                count++;
             }
         }
 

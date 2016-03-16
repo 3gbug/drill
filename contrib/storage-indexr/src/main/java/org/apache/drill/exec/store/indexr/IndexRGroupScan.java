@@ -23,6 +23,7 @@ import com.google.common.collect.ListMultimap;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -81,6 +82,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
         return newScan;
     }
 
+    @JsonIgnore
     public IndexRStoragePlugin getStoragePlugin() {
         return plugin;
     }
@@ -98,6 +100,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
     @JsonProperty("indexrScanSpec")
     public IndexRScanSpec getScanSpec() {
         return scanSpec;
+    }
+
+    @Override
+    @JsonIgnore
+    public boolean canPushdownProjects(List<SchemaPath> columns) {
+        return true;
     }
 
     @Override

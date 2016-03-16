@@ -44,7 +44,10 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
     private final IndexRSchemaFactory schemaFactory;
     private final FakeSegmentManager segmentManager;
 
-    public IndexRStoragePlugin(IndexRStoragePluginConfig engineConfig, DrillbitContext context, String name) {
+    public IndexRStoragePlugin(
+            IndexRStoragePluginConfig engineConfig,
+            DrillbitContext context,
+            String name) {
         this.engineConfig = engineConfig;
         this.context = context;
         this.pluginName = name;

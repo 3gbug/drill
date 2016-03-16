@@ -22,6 +22,7 @@ import com.google.common.collect.Iterators;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 
@@ -62,6 +63,7 @@ public class IndexRSubScan extends AbstractBase implements SubScan {
         this.columns = columns;
     }
 
+    @JsonIgnore
     public IndexRStoragePlugin getPlugin() {
         return plugin;
     }
