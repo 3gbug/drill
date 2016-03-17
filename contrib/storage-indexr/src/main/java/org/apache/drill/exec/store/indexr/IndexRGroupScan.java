@@ -29,6 +29,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
+import org.apache.drill.exec.physical.EndpointAffinity;
 import org.apache.drill.exec.physical.PhysicalOperatorSetupException;
 import org.apache.drill.exec.physical.base.AbstractGroupScan;
 import org.apache.drill.exec.physical.base.PhysicalOperator;
@@ -36,13 +37,18 @@ import org.apache.drill.exec.physical.base.ScanStats;
 import org.apache.drill.exec.physical.base.SubScan;
 import org.apache.drill.exec.proto.CoordinationProtos.DrillbitEndpoint;
 import org.apache.drill.exec.store.StoragePluginRegistry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @JsonTypeName("indexr-scan")
 public class IndexRGroupScan extends AbstractGroupScan {
+    private static final Logger logger = LoggerFactory.getLogger(IndexRGroupScan.class);
+
     private final IndexRStoragePlugin plugin;
     private final IndexRScanSpec scanSpec;
     private List<SchemaPath> columns;
@@ -50,10 +56,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
     private ListMultimap<Integer, String> assignments;
 
     @JsonCreator
-    public IndexRGroupScan(@JsonProperty("indexrScanSpec") IndexRScanSpec scanSpec,
-                           @JsonProperty("storage") IndexRStoragePluginConfig storagePluginConfig,
-                           @JsonProperty("columns") List<SchemaPath> columns,
-                           @JacksonInject StoragePluginRegistry pluginRegistry) throws IOException, ExecutionSetupException {
+    public IndexRGroupScan(
+            @JsonProperty("indexrScanSpec") IndexRScanSpec scanSpec,
+            @JsonProperty("storage") IndexRStoragePluginConfig storagePluginConfig,
+            @JsonProperty("columns") List<SchemaPath> columns,
+            @JacksonInject StoragePluginRegistry pluginRegistry
+    ) throws IOException, ExecutionSetupException {
         this((IndexRStoragePlugin) pluginRegistry.getPlugin(storagePluginConfig), scanSpec, columns);
     }
 
@@ -110,8 +118,10 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public int getMaxParallelizationWidth() {
-        return Math.min(Runtime.getRuntime().availableProcessors() - 1,
-                plugin.segmentManager().getSegmentCount(scanSpec.getTableName()));
+        return Math.min(
+                Runtime.getRuntime().availableProcessors() - 1,
+                plugin.segmentManager().getSegmentCount(scanSpec.getTableName())
+        );
     }
 
     @Override
@@ -137,7 +147,14 @@ public class IndexRGroupScan extends AbstractGroupScan {
     }
 
     @Override
+    public List<EndpointAffinity> getOperatorAffinity() {
+        return plugin.context().getBits().stream().map(e -> new EndpointAffinity(e, 1.0)).collect(Collectors.toList());
+    }
+
+    @Override
     public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
+        logger.info("applyAssignments endpoints - " + endpoints);
+
         List<Integer> localMinorFragmentIds = new ArrayList<>();
         int index = 0;
         for (DrillbitEndpoint endpoint : endpoints) {
@@ -156,17 +173,21 @@ public class IndexRGroupScan extends AbstractGroupScan {
         for (int fragId : localMinorFragmentIds) {
             for (String id : segmentIds.subList(
                     (int) (count * fragAssignScale),
-                    (int) ((count + 1) * fragAssignScale))) {
+                    (int) ((count + 1) * fragAssignScale)
+            )) {
                 assignments.put(fragId, id);
             }
             count++;
         }
 
         Preconditions.checkState(assignments.values().size() == segmentIds.size());
+        logger.info("applyAssignments assignments - " + assignments);
     }
 
     @Override
     public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
+        logger.info("getSpecificScan minorFragmentId - " + assignments);
+
         IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(scanSpec.getTableName(), assignments.get(minorFragmentId));
         return new IndexRSubScan(plugin, subScanSpec, columns);
     }
