@@ -110,6 +110,8 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
 
     @Override
     public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection, List<SchemaPath> columns) throws IOException {
+        log.debug("=====================  getPhysicalScan selection - " + selection);
+
         IndexRScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<IndexRScanSpec>() {});
         return new IndexRGroupScan(this, scanSpec, columns);
     }

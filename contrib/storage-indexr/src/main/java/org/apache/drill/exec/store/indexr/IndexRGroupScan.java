@@ -20,6 +20,7 @@ package org.apache.drill.exec.store.indexr;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
+import com.google.common.collect.Lists;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
@@ -41,8 +42,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @JsonTypeName("indexr-scan")
@@ -53,7 +55,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
     private final IndexRScanSpec scanSpec;
     private List<SchemaPath> columns;
 
-    private ListMultimap<Integer, String> assignments;
+    private ListMultimap<Integer, Integer> assignments;
 
     @JsonCreator
     public IndexRGroupScan(
@@ -70,6 +72,8 @@ public class IndexRGroupScan extends AbstractGroupScan {
         this.plugin = plugin;
         this.scanSpec = scanSpec;
         this.columns = columns;
+
+        logger.debug("===================== Creating new instance!");
     }
 
     /**
@@ -85,6 +89,8 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public IndexRGroupScan clone(List<SchemaPath> columns) {
+        logger.debug("=====================  clone, columns - " + columns);
+
         IndexRGroupScan newScan = new IndexRGroupScan(this);
         newScan.columns = columns;
         return newScan;
@@ -118,10 +124,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public int getMaxParallelizationWidth() {
-        return Math.min(
-                Runtime.getRuntime().availableProcessors() - 1,
-                plugin.segmentManager().getSegmentCount(scanSpec.getTableName())
-        );
+        return plugin.context().getBits().size() * 10;
     }
 
     @Override
@@ -136,12 +139,15 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public ScanStats getScanStats() {
-        long recordCount = 100000 * 10;
+        // Make sure cost is big enough.
+        long recordCount = 1000000 * plugin.context().getBits().size();
         return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, recordCount, 1, recordCount);
     }
 
     @Override
     public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+        logger.debug("=====================  getNewWithChildren, columns - " + columns);
+
         Preconditions.checkArgument(children.isEmpty());
         return new IndexRGroupScan(this);
     }
@@ -153,42 +159,61 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
-        logger.info("applyAssignments endpoints - " + endpoints);
+        logger.debug("=====================  applyAssignments endpoints - " + endpoints);
 
-        List<Integer> localMinorFragmentIds = new ArrayList<>();
-        int index = 0;
+        Map<DrillbitEndpoint, List<Integer>> endpointToFragments = new HashMap<>();
+        Map<Integer, DrillbitEndpoint> fragmentToEndpoint = new HashMap<>();
+        int minorFragmentId = 0;
         for (DrillbitEndpoint endpoint : endpoints) {
-            if (endpoint.equals(plugin.context().getEndpoint())) {
-                localMinorFragmentIds.add(index);
+            List<Integer> fragmentIds = endpointToFragments.get(endpoint);
+            if (fragmentIds == null) {
+                endpointToFragments.put(endpoint, Lists.newArrayList(minorFragmentId));
+            } else {
+                fragmentIds.add(minorFragmentId);
             }
-            index++;
-        }
-        Preconditions.checkState(localMinorFragmentIds.size() > 0);
+            fragmentToEndpoint.put(minorFragmentId, endpoint);
 
-        List<String> segmentIds = plugin.segmentManager().getSegmentIdList(scanSpec.getTableName());
+            minorFragmentId++;
+        }
 
         assignments = ArrayListMultimap.create();
-        double fragAssignScale = (double) segmentIds.size() / localMinorFragmentIds.size();
-        int count = 0;
-        for (int fragId : localMinorFragmentIds) {
-            for (String id : segmentIds.subList(
-                    (int) (count * fragAssignScale),
-                    (int) ((count + 1) * fragAssignScale)
-            )) {
-                assignments.put(fragId, id);
-            }
-            count++;
+        for (Map.Entry<Integer, DrillbitEndpoint> e : fragmentToEndpoint.entrySet()) {
+            List<Integer> fragmentIds = endpointToFragments.get(e.getValue());
+            assignments.putAll(e.getKey(), fragmentIds);
         }
-
-        Preconditions.checkState(assignments.values().size() == segmentIds.size());
-        logger.info("applyAssignments assignments - " + assignments);
+        logger.debug("=====================  applyAssignments assignments - " + assignments);
     }
 
     @Override
     public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
-        logger.info("getSpecificScan minorFragmentId - " + assignments);
+        logger.debug("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
 
-        IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(scanSpec.getTableName(), assignments.get(minorFragmentId));
+        List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
+
+        IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(
+                scanSpec.getTableName(),
+                allFragmentsInSameEndpoint.size(),
+                allFragmentsInSameEndpoint.indexOf(minorFragmentId));
         return new IndexRSubScan(plugin, subScanSpec, columns);
+    }
+
+    static class FragmentWork {
+        int minorFragmentId;
+        int indexInEndpoint;
+        int totalEndpointFragmentCount;
+
+        public FragmentWork(int minorFragmentId, int indexInEndpoint, int totalEndpointFragmentCount) {
+            this.minorFragmentId = minorFragmentId;
+            this.indexInEndpoint = indexInEndpoint;
+            this.totalEndpointFragmentCount = totalEndpointFragmentCount;
+        }
+
+        @Override public String toString() {
+            return "FragmentWork{" +
+                    "minorFragmentId=" + minorFragmentId +
+                    ", indexInEndpoint=" + indexInEndpoint +
+                    ", totalEndpointFragmentCount=" + totalEndpointFragmentCount +
+                    '}';
+        }
     }
 }

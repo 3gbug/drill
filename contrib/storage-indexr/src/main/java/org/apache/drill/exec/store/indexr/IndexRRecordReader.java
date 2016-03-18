@@ -80,6 +80,8 @@ public class IndexRRecordReader extends AbstractRecordReader {
     public IndexRRecordReader(Segment segment, List<SchemaPath> projectColumns, FragmentContext context) {
         this.segment = segment;
 
+        log.info("=====================  IndexRRecordReader projectColumns - " + projectColumns);
+
         log.debug("segment: {}", segment);
 
         setColumns(projectColumns);

@@ -20,18 +20,20 @@ package org.apache.drill.exec.store.indexr;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
-import java.util.List;
-
 public class IndexRSubScanSpec {
     @JsonProperty("tableName")
     public final String tableName;
-    @JsonProperty("segmentIds")
-    public final List<String> segmentIds;
+    @JsonProperty("parallelization")
+    public final Integer parallelization;
+    @JsonProperty("parallelizationIndex")
+    public final Integer parallelizationIndex;
 
     @JsonCreator
     public IndexRSubScanSpec(@JsonProperty("tableName") String tableName,
-                             @JsonProperty("segmentIds") List<String> segmentIds) {
+                             @JsonProperty("parallelization") Integer parallelization,
+                             @JsonProperty("parallelizationIndex") Integer parallelizationIndex) {
         this.tableName = tableName;
-        this.segmentIds = segmentIds;
+        this.parallelization = parallelization;
+        this.parallelizationIndex = parallelizationIndex;
     }
 }
