@@ -124,7 +124,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public int getMaxParallelizationWidth() {
-        return plugin.context().getBits().size() * 10;
+        return plugin.context().getBits().size();
+    }
+
+    @Override
+    public int getMinParallelizationWidth() {
+        return plugin.context().getBits().size();
     }
 
     @Override

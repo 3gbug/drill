@@ -21,20 +21,16 @@ import com.google.common.base.Preconditions;
 
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.exec.ops.FragmentContext;
-import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.physical.impl.BatchCreator;
-import org.apache.drill.exec.physical.impl.OutputMutator;
 import org.apache.drill.exec.physical.impl.ScanBatch;
 import org.apache.drill.exec.record.RecordBatch;
-import org.apache.drill.exec.store.AbstractRecordReader;
 import org.apache.drill.exec.store.RecordReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import io.indexr.segment.Segment;
 
@@ -53,14 +49,13 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
         List<Segment> segments = segmentManager.getSegmentList(subScan.getSpec().tableName);
         IndexRSubScanSpec spec = subScan.getSpec();
 
-        List<RecordReader> assignReaders;
+        List<RecordReader> assignReaders = new ArrayList<>();
         if (spec.parallelization > idToSegment.size()) {
             if (spec.parallelizationIndex >= idToSegment.size()) {
                 logger.warn("subScan with spec {} have not record reader to assign", spec);
-                assignReaders = Collections.<RecordReader>singletonList(new EmptyRecordReader());
+                assignReaders.add(new EmptyRecordReader());
             } else {
-                assignReaders = Collections.<RecordReader>singletonList(
-                        new IndexRRecordReader(segments.get(spec.parallelizationIndex), subScan.getColumns(), context));
+                assignReaders.add(new IndexRRecordReader(segments.get(spec.parallelizationIndex), subScan.getColumns(), context));
             }
         } else {
             double assignScale = ((double) spec.parallelization) / idToSegment.size();
@@ -68,18 +63,13 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
                     (int) (spec.parallelizationIndex * assignScale),
                     (int) ((spec.parallelizationIndex + 1) * assignScale)
             );
-            assignReaders = assignSegments.stream().map(
-                    s -> (RecordReader) new IndexRRecordReader(s, subScan.getColumns(), context))
-                    .collect(Collectors.toList());
+
+            for (Segment segment : assignSegments) {
+                assignReaders.add(
+                        new IndexRRecordReader(segment, subScan.getColumns(), context)
+                );
+            }
         }
         return new ScanBatch(subScan, context, assignReaders.iterator());
-    }
-
-    static class EmptyRecordReader extends AbstractRecordReader {
-        @Override public void setup(OperatorContext context, OutputMutator output) throws ExecutionSetupException {}
-
-        @Override public int next() {return 0;}
-
-        @Override public void close() throws Exception {}
     }
 }
