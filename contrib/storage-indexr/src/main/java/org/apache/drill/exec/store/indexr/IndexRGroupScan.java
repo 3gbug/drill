@@ -124,12 +124,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public int getMaxParallelizationWidth() {
-        return plugin.context().getBits().size();
+        return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
     }
 
     @Override
     public int getMinParallelizationWidth() {
-        return plugin.context().getBits().size();
+        return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
     }
 
     @Override
@@ -151,7 +151,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-        logger.debug("=====================  getNewWithChildren, columns - " + columns);
+        logger.info("=====================  getNewWithChildren, columns - " + columns);
 
         Preconditions.checkArgument(children.isEmpty());
         return new IndexRGroupScan(this);
@@ -164,7 +164,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
-        logger.debug("=====================  applyAssignments endpoints - " + endpoints);
+        logger.info("=====================  applyAssignments endpoints - " + endpoints);
 
         Map<DrillbitEndpoint, List<Integer>> endpointToFragments = new HashMap<>();
         Map<Integer, DrillbitEndpoint> fragmentToEndpoint = new HashMap<>();
@@ -186,12 +186,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
             List<Integer> fragmentIds = endpointToFragments.get(e.getValue());
             assignments.putAll(e.getKey(), fragmentIds);
         }
-        logger.debug("=====================  applyAssignments assignments - " + assignments);
+        logger.info("=====================  applyAssignments assignments - " + assignments);
     }
 
     @Override
     public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
-        logger.debug("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
+        logger.info("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
 
         List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
 

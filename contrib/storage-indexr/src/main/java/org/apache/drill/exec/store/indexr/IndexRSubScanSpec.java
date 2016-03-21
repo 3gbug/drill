@@ -36,4 +36,12 @@ public class IndexRSubScanSpec {
         this.parallelization = parallelization;
         this.parallelizationIndex = parallelizationIndex;
     }
+
+    @Override public String toString() {
+        return "IndexRSubScanSpec{" +
+                "tableName='" + tableName + '\'' +
+                ", parallelization=" + parallelization +
+                ", parallelizationIndex=" + parallelizationIndex +
+                '}';
+    }
 }

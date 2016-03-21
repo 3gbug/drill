@@ -40,7 +40,7 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
     @Override
     public ScanBatch getBatch(FragmentContext context, IndexRSubScan subScan, List<RecordBatch> children)
             throws ExecutionSetupException {
-        logger.debug("=====================  getBatch subScan - " + subScan);
+        logger.info("=====================  getBatch subScan.getSpec - " + subScan.getSpec());
 
         Preconditions.checkArgument(children.isEmpty());
 
@@ -50,7 +50,7 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
         IndexRSubScanSpec spec = subScan.getSpec();
 
         List<RecordReader> assignReaders = new ArrayList<>();
-        if (spec.parallelization > idToSegment.size()) {
+        if (spec.parallelization >= idToSegment.size()) {
             if (spec.parallelizationIndex >= idToSegment.size()) {
                 logger.warn("subScan with spec {} have not record reader to assign", spec);
                 assignReaders.add(new EmptyRecordReader());
@@ -58,9 +58,9 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
                 assignReaders.add(new IndexRRecordReader(segments.get(spec.parallelizationIndex), subScan.getColumns(), context));
             }
         } else {
-            double assignScale = ((double) spec.parallelization) / idToSegment.size();
+            double assignScale = ((double)idToSegment.size()  / spec.parallelization);
             List<Segment> assignSegments = segments.subList(
-                    (int) (spec.parallelizationIndex * assignScale),
+                    (int) ( spec.parallelizationIndex * assignScale),
                     (int) ((spec.parallelizationIndex + 1) * assignScale)
             );
 

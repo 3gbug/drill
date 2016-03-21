@@ -31,15 +31,24 @@ public class IndexRStoragePluginConfig extends StoragePluginConfigBase {
     public static final String NAME = "indexr";
 
     private final String dataDir;
+    private final Integer scanThreadsPerNode;
 
     @JsonCreator
-    public IndexRStoragePluginConfig(@JsonProperty("dataDir") String dataDir) {
+    public IndexRStoragePluginConfig(
+            @JsonProperty("dataDir") String dataDir,
+            @JsonProperty("scanThreadsPerNode") Integer scanThreadsPerNode) {
         this.dataDir = dataDir;
+        this.scanThreadsPerNode = scanThreadsPerNode != null && scanThreadsPerNode > 0 ? scanThreadsPerNode : 1;
     }
 
     @JsonProperty("dataDir")
     public String getDataDir() {
         return dataDir;
+    }
+
+    @JsonProperty("scanThreadsPerNode")
+    public int getScanThreadsPerNode() {
+        return scanThreadsPerNode;
     }
 
     @Override
