@@ -17,12 +17,16 @@
  */
 package org.apache.drill.exec.store.indexr;
 
+import com.google.common.collect.Sets;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.drill.common.JSONOptions;
 import org.apache.drill.common.expression.SchemaPath;
+import org.apache.drill.exec.ops.OptimizerRulesContext;
 import org.apache.drill.exec.physical.base.AbstractGroupScan;
 import org.apache.drill.exec.physical.base.GroupScan;
 import org.apache.drill.exec.server.DrillbitContext;
@@ -33,6 +37,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Set;
 
 public class IndexRStoragePlugin extends AbstractStoragePlugin {
     private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
@@ -96,6 +101,13 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
     @Override
     public void close() throws Exception {
         super.close();
+    }
+
+    @Override
+    public Set<? extends RelOptRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
+        return Sets.newHashSet(
+                IndexRPushDownRSFilter.MatchFilterScan,
+                IndexRPushDownRSFilter.MatchFilterProjectScan);
     }
 
     @Override

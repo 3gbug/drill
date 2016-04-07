@@ -29,9 +29,10 @@ public class TestIndexRPlugin extends BaseTestQuery {
         test("show tables;");
         test("describe campaign");
 
-        test("select count(0) from indexr.campaign;");
-        test("select count(*) from indexr.campaign;");
-        test("select campaign_id, sum(impressions), avg(cost), max(clicks) from indexr.campaign group by campaign_id order by sum(impressions) desc limit 10;");
+        test("select campaign_id, sum(impressions), sum(clicks), sum(cost) from indexr.campaign where campaign_id in (55986,56548,56549,57005,57008,57057,57271,57512,57828,57860,57862,57969,58176,58239,58257,58500,58531,58576,58660,58761,58805,58939,59194,59329,59441,59553,59643,59698,59704,59948,59956,59959,59960,59961,60182,60200,60204,60313,60430,60489,60567,60569,60640,60642,60645,60698,60724,60769,60876,60887,60943,60983,61005,61014,61068,61073,61079,61132,61141,61178,61185,61190,61191) and channel_id > 10 group by campaign_id;");
+        //test("select campaign_id, sum(impressions), sum(clicks), sum(cost) from indexr.campaign where campaign_id in (55986,56548,56549) group by campaign_id;");
+        //test("select count(*) from indexr.campaign;");
+        //test("select campaign_id, sum(impressions), avg(cost), max(clicks) from indexr.campaign group by campaign_id order by sum(impressions) desc limit 10;");
     }
 
 }

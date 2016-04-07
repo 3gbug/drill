@@ -97,6 +97,11 @@ public class IndexRGroupScan extends AbstractGroupScan {
     }
 
     @JsonIgnore
+    public boolean hasSetRSFilter() {
+        return scanSpec.getRsFilter() != null;
+    }
+
+    @JsonIgnore
     public IndexRStoragePlugin getStoragePlugin() {
         return plugin;
     }
@@ -144,6 +149,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public ScanStats getScanStats() {
+        // TODO This should be replaced be real row count, to enable fast "select count(*) from table".
         // Make sure cost is big enough.
         long recordCount = 1000000 * plugin.context().getBits().size();
         return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, recordCount, 1, recordCount);
@@ -198,27 +204,8 @@ public class IndexRGroupScan extends AbstractGroupScan {
         IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(
                 scanSpec.getTableName(),
                 allFragmentsInSameEndpoint.size(),
-                allFragmentsInSameEndpoint.indexOf(minorFragmentId));
+                allFragmentsInSameEndpoint.indexOf(minorFragmentId),
+                scanSpec.getRsFilter());
         return new IndexRSubScan(plugin, subScanSpec, columns);
-    }
-
-    static class FragmentWork {
-        int minorFragmentId;
-        int indexInEndpoint;
-        int totalEndpointFragmentCount;
-
-        public FragmentWork(int minorFragmentId, int indexInEndpoint, int totalEndpointFragmentCount) {
-            this.minorFragmentId = minorFragmentId;
-            this.indexInEndpoint = indexInEndpoint;
-            this.totalEndpointFragmentCount = totalEndpointFragmentCount;
-        }
-
-        @Override public String toString() {
-            return "FragmentWork{" +
-                    "minorFragmentId=" + minorFragmentId +
-                    ", indexInEndpoint=" + indexInEndpoint +
-                    ", totalEndpointFragmentCount=" + totalEndpointFragmentCount +
-                    '}';
-        }
     }
 }

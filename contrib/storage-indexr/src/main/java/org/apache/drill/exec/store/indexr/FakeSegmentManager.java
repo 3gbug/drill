@@ -97,6 +97,14 @@ public class FakeSegmentManager {
         return tables.keySet();
     }
 
+    public SegmentSchema getSchema(String name){
+        FakeTable table = tables.get(name.toLowerCase());
+        if (table == null) {
+            return null;
+        }
+        return table.schema;
+    }
+
     public DrillIndexRTable getTable(IndexRStoragePlugin plugin, String name, IndexRScanSpec spec) throws IOException {
         FakeTable table = tables.get(name.toLowerCase());
         if (table == null) {

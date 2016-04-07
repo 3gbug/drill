@@ -17,7 +17,6 @@
  */
 package org.apache.drill.exec.store.indexr;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.common.types.TypeProtos;
@@ -29,40 +28,26 @@ import org.apache.drill.exec.ops.OperatorContext;
 import org.apache.drill.exec.physical.impl.OutputMutator;
 import org.apache.drill.exec.record.MaterializedField;
 import org.apache.drill.exec.store.AbstractRecordReader;
-import org.apache.drill.exec.vector.BigIntVector;
-import org.apache.drill.exec.vector.Float4Vector;
-import org.apache.drill.exec.vector.Float8Vector;
-import org.apache.drill.exec.vector.IntVector;
 import org.apache.drill.exec.vector.ValueVector;
-import org.apache.drill.exec.vector.VarCharVector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 
-import io.indexr.data.BytePiece;
 import io.indexr.segment.Column;
 import io.indexr.segment.ColumnSchema;
-import io.indexr.segment.ColumnType;
-import io.indexr.segment.Row;
 import io.indexr.segment.Segment;
-import io.indexr.segment.pack.DataPack;
-import io.indexr.util.MemoryUtil;
+import io.indexr.segment.rc.RCOperator;
+import io.indexr.util.Pair;
 
-public class IndexRRecordReader extends AbstractRecordReader {
+public abstract class IndexRRecordReader extends AbstractRecordReader {
     private static final Logger log = LoggerFactory.getLogger(IndexRRecordReader.class);
-    private static final int TARGET_RECORD_COUNT = DataPack.MAX_COUNT >>> 4; // 4096
 
+    final Segment segment;
+    final RCOperator rsFilter;
+    ProjectedColumnInfo[] projectedColumnInfos;
 
-    private final Segment segment;
-
-    private ProjectedColumnInfo[] projectedColumnInfos;
-    private Iterator<Row> segmentRowItr;
-    private long curRowIndex = 0;
-
-    private static class ProjectedColumnInfo {
+    static class ProjectedColumnInfo {
         int ordinal;
         byte dataType;
         ValueVector valueVector;
@@ -77,14 +62,19 @@ public class IndexRRecordReader extends AbstractRecordReader {
         }
     }
 
-    public IndexRRecordReader(Segment segment, List<SchemaPath> projectColumns, FragmentContext context) {
+    IndexRRecordReader(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
         this.segment = segment;
-
-        log.info("=====================  IndexRRecordReader projectColumns - " + projectColumns);
+        this.rsFilter = rsFilter;
 
         log.debug("segment: {}", segment);
 
         setColumns(projectColumns);
+    }
+
+    public static IndexRRecordReader create(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
+        return segment.column(0) == null
+                ? new IndexRRecordReaderByRow(segment, projectColumns, context, rsFilter)
+                : new IndexRRecordReaderByColumn(segment, projectColumns, context, rsFilter);
     }
 
     @SuppressWarnings("unchecked")
@@ -120,104 +110,17 @@ public class IndexRRecordReader extends AbstractRecordReader {
             projectedColumnInfos = new ProjectedColumnInfo[this.getColumns().size()];
             int count = 0;
             for (SchemaPath schemaPath : this.getColumns()) {
-                String colName = StringUtils.removeStart(
-                        schemaPath.getAsUnescapedPath().toLowerCase(),
-                        segment.schema().name + "."); // remove the table name.
-                int[] ordinal = new int[]{-1};
-                ColumnSchema cs = schemas.stream().filter(
-                        s -> {
-                            ordinal[0]++;
-                            return s.name.equalsIgnoreCase(colName);
-                        })
-                        .findFirst().get();
-                if (cs == null) {
+                Pair<ColumnSchema, Integer> p = DrillIndexRTable.mapColumn(segment.schema(), schemaPath);
+                if (p == null) {
                     throw new RuntimeException(String.format(
-                            "Column not found! SchemaPath: %s, search colName: %s, search segment schema: %s",
+                            "Column not found! SchemaPath: %s, search segment schema: %s",
                             schemaPath,
-                            colName,
                             schemas
                     ));
                 }
-                projectedColumnInfos[count] = genPCI(ordinal[0], cs.dataType, cs.name, output);
+                projectedColumnInfos[count] = genPCI(p.second, p.first.dataType, p.first.name, output);
                 count++;
             }
-        }
-
-        // If we cannot fetch data by column, then do it by row.
-        if (projectedColumnInfos.length > 0) {
-            if (projectedColumnInfos[0].column == null) {
-                segmentRowItr = segment.rowTraversal().iterator();
-            }
-        }
-    }
-
-
-    @Override
-    public int next() {
-        if (segmentRowItr != null) {
-            // By Row.
-            int rowCount = 0;
-            while (rowCount < TARGET_RECORD_COUNT && segmentRowItr.hasNext()) {
-                Row row = segmentRowItr.next();
-                for (ProjectedColumnInfo info : projectedColumnInfos) {
-                    switch (info.dataType) {
-                        case ColumnType.Int:
-                            ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getInt(info.ordinal));
-                            break;
-                        case ColumnType.Long:
-                            ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getLong(info.ordinal));
-                            break;
-                        case ColumnType.Float:
-                            ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getFloat(info.ordinal));
-                            break;
-                        case ColumnType.Double:
-                            ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getDouble(info.ordinal));
-                            break;
-                        case ColumnType.String:
-                            CharSequence value = row.getString(info.ordinal);
-                            ((VarCharVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, value.toString().getBytes());
-                            break;
-                        default:
-                            throw new RuntimeException("Impossible!");
-                    }
-                }
-                rowCount++;
-            }
-            return rowCount;
-        } else {
-            // By column;
-            // TODO add index & agg optimize.
-            BytePiece bytePiece = new BytePiece();
-            ByteBuffer byteBuffer = MemoryUtil.getHollowDirectByteBuffer();
-            int rowCount = 0;
-            while (rowCount < TARGET_RECORD_COUNT && curRowIndex < segment.rowCount()) {
-                for (ProjectedColumnInfo info : projectedColumnInfos) {
-                    switch (info.dataType) {
-                        case ColumnType.Int:
-                            ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.intValueAt(curRowIndex));
-                            break;
-                        case ColumnType.Long:
-                            ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.longValueAt(curRowIndex));
-                            break;
-                        case ColumnType.Float:
-                            ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.floatValueAt(curRowIndex));
-                            break;
-                        case ColumnType.Double:
-                            ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, info.column.doubleValueAt(curRowIndex));
-                            break;
-                        case ColumnType.String:
-                            info.column.rawValueAt(curRowIndex, bytePiece);
-                            MemoryUtil.setByteBuffer(byteBuffer, bytePiece.addr, bytePiece.len, null);
-                            ((VarCharVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, byteBuffer, 0, byteBuffer.remaining());
-                            break;
-                        default:
-                            throw new RuntimeException("Impossible!");
-                    }
-                }
-                rowCount++;
-                curRowIndex++;
-            }
-            return rowCount;
         }
     }
 

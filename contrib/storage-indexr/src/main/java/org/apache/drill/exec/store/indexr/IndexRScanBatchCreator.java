@@ -55,19 +55,25 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
                 logger.warn("subScan with spec {} have not record reader to assign", spec);
                 assignReaders.add(new EmptyRecordReader());
             } else {
-                assignReaders.add(new IndexRRecordReader(segments.get(spec.parallelizationIndex), subScan.getColumns(), context));
+                assignReaders.add(IndexRRecordReader.create(
+                        segments.get(spec.parallelizationIndex),
+                        subScan.getColumns(),
+                        context,
+                        spec.rsFilter));
             }
         } else {
-            double assignScale = ((double)idToSegment.size()  / spec.parallelization);
+            double assignScale = ((double) idToSegment.size() / spec.parallelization);
             List<Segment> assignSegments = segments.subList(
-                    (int) ( spec.parallelizationIndex * assignScale),
+                    (int) (spec.parallelizationIndex * assignScale),
                     (int) ((spec.parallelizationIndex + 1) * assignScale)
             );
 
             for (Segment segment : assignSegments) {
-                assignReaders.add(
-                        new IndexRRecordReader(segment, subScan.getColumns(), context)
-                );
+                assignReaders.add(IndexRRecordReader.create(
+                        segment,
+                        subScan.getColumns(),
+                        context,
+                        spec.rsFilter));
             }
         }
         return new ScanBatch(subScan, context, assignReaders.iterator());
