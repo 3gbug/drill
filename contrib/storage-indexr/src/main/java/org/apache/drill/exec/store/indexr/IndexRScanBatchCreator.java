@@ -49,26 +49,28 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
         List<Segment> segments = segmentManager.getSegmentList(subScan.getSpec().tableName);
         IndexRSubScanSpec spec = subScan.getSpec();
 
-        List<RecordReader> assignReaders = new ArrayList<>();
+        List<Segment> toScanSegments = new ArrayList<>();
         if (spec.parallelization >= idToSegment.size()) {
             if (spec.parallelizationIndex >= idToSegment.size()) {
                 logger.warn("subScan with spec {} have not record reader to assign", spec);
-                assignReaders.add(new EmptyRecordReader());
             } else {
-                assignReaders.add(IndexRRecordReader.create(
-                        segments.get(spec.parallelizationIndex),
-                        subScan.getColumns(),
-                        context,
-                        spec.rsFilter));
+                toScanSegments.add(segments.get(spec.parallelizationIndex));
             }
         } else {
             double assignScale = ((double) idToSegment.size() / spec.parallelization);
-            List<Segment> assignSegments = segments.subList(
+            toScanSegments = segments.subList(
                     (int) (spec.parallelizationIndex * assignScale),
                     (int) ((spec.parallelizationIndex + 1) * assignScale)
             );
+        }
 
-            for (Segment segment : assignSegments) {
+        logger.info("==========toScanSegments: {}", toScanSegments);
+
+        List<RecordReader> assignReaders = new ArrayList<>();
+        if (toScanSegments.isEmpty()) {
+            assignReaders.add(new EmptyRecordReader());
+        } else {
+            for (Segment segment : toScanSegments) {
                 assignReaders.add(IndexRRecordReader.create(
                         segment,
                         subScan.getColumns(),

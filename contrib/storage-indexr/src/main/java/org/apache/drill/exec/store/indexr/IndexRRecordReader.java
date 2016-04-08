@@ -48,14 +48,14 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
     ProjectedColumnInfo[] projectedColumnInfos;
 
     static class ProjectedColumnInfo {
-        int ordinal;
+        int columnId;
         byte dataType;
         ValueVector valueVector;
 
         Column column;
 
-        public ProjectedColumnInfo(int ordinal, byte dataType, ValueVector valueVector, Column column) {
-            this.ordinal = ordinal;
+        public ProjectedColumnInfo(int columnId, byte dataType, ValueVector valueVector, Column column) {
+            this.columnId = columnId;
             this.dataType = dataType;
             this.valueVector = valueVector;
             this.column = column;
@@ -78,7 +78,7 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
     }
 
     @SuppressWarnings("unchecked")
-    private ProjectedColumnInfo genPCI(int ordinal, byte dataType, String name, OutputMutator output) {
+    private ProjectedColumnInfo genPCI(int columnId, byte dataType, String name, OutputMutator output) {
         TypeProtos.MinorType minorType = DrillIndexRTable.parseMinorType(dataType);
         TypeProtos.MajorType majorType = Types.required(minorType);
         MaterializedField field = MaterializedField.create(name, majorType);
@@ -91,8 +91,8 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
             throw new RuntimeException(e);
         }
         vector.allocateNew();
-        Column column = segment.column(ordinal);
-        return new ProjectedColumnInfo(ordinal, dataType, vector, column);
+        Column column = segment.column(columnId);
+        return new ProjectedColumnInfo(columnId, dataType, vector, column);
     }
 
     @Override
@@ -101,10 +101,10 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
         List<ColumnSchema> schemas = segment.schema().columns;
         if (isStarQuery()) {
             projectedColumnInfos = new ProjectedColumnInfo[schemas.size()];
-            int ordinal = 0;
+            int columnId = 0;
             for (ColumnSchema cs : schemas) {
-                projectedColumnInfos[ordinal] = genPCI(ordinal, cs.dataType, cs.name, output);
-                ordinal++;
+                projectedColumnInfos[columnId] = genPCI(columnId, cs.dataType, cs.name, output);
+                columnId++;
             }
         } else {
             projectedColumnInfos = new ProjectedColumnInfo[this.getColumns().size()];

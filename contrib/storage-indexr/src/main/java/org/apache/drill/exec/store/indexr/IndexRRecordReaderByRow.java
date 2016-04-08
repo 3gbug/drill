@@ -61,19 +61,19 @@ public class IndexRRecordReaderByRow extends IndexRRecordReader {
             for (ProjectedColumnInfo info : projectedColumnInfos) {
                 switch (info.dataType) {
                     case ColumnType.INT:
-                        ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getInt(info.ordinal));
+                        ((IntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getInt(info.columnId));
                         break;
                     case ColumnType.LONG:
-                        ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getLong(info.ordinal));
+                        ((BigIntVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getLong(info.columnId));
                         break;
                     case ColumnType.FLOAT:
-                        ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getFloat(info.ordinal));
+                        ((Float4Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getFloat(info.columnId));
                         break;
                     case ColumnType.DOUBLE:
-                        ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getDouble(info.ordinal));
+                        ((Float8Vector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, row.getDouble(info.columnId));
                         break;
                     case ColumnType.STRING:
-                        CharSequence value = row.getString(info.ordinal);
+                        CharSequence value = row.getString(info.columnId);
                         ((VarCharVector.Mutator) info.valueVector.getMutator()).setSafe(rowCount, value.toString().getBytes());
                         break;
                     default:

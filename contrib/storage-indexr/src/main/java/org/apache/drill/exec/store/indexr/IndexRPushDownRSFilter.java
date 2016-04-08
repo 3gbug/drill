@@ -18,6 +18,7 @@
 package org.apache.drill.exec.store.indexr;
 
 import org.apache.calcite.plan.RelOptRuleCall;
+import org.apache.calcite.plan.RelOptUtil;
 import org.apache.calcite.rex.RexNode;
 import org.apache.drill.common.expression.LogicalExpression;
 import org.apache.drill.exec.physical.base.GroupScan;
@@ -37,8 +38,7 @@ import io.indexr.segment.rc.RCOperator;
 public class IndexRPushDownRSFilter {
     private static final Logger log = LoggerFactory.getLogger(IndexRPushDownRSFilter.class);
 
-    private static void setRSFilter(RelOptRuleCall call, ScanPrel scan, FilterPrel filter) {
-        final RexNode condition = filter.getCondition();
+    private static void setRSFilter(RelOptRuleCall call, FilterPrel filter, ProjectPrel project, ScanPrel scan, RexNode condition) {
         GroupScan gs = scan.getGroupScan();
         if (gs == null || !(gs instanceof IndexRGroupScan)) {
             return;
@@ -61,7 +61,11 @@ public class IndexRPushDownRSFilter {
             RelOptHelper.some(FilterPrel.class, RelOptHelper.any(ScanPrel.class)), "IndexRFilterScan") {
         @Override
         public void onMatch(RelOptRuleCall call) {
-            setRSFilter(call, (ScanPrel) call.rel(1), (FilterPrel) call.rel(0));
+            FilterPrel filter = (FilterPrel) call.rel(0);
+            ScanPrel scan = (ScanPrel) call.rel(1);
+            RexNode condition = filter.getCondition();
+
+            setRSFilter(call, filter, null, scan, condition);
         }
     };
 
@@ -69,79 +73,12 @@ public class IndexRPushDownRSFilter {
             RelOptHelper.some(FilterPrel.class, RelOptHelper.some(ProjectPrel.class, RelOptHelper.any(ScanPrel.class))), "IndexRFilterProjectScan") {
         @Override
         public void onMatch(RelOptRuleCall call) {
-            setRSFilter(call, (ScanPrel) call.rel(2), (FilterPrel) call.rel(0));
+            FilterPrel filter = (FilterPrel) call.rel(0);
+            ProjectPrel project = (ProjectPrel) call.rel(1);
+            ScanPrel scan = (ScanPrel) call.rel(2);
+            RexNode condition = RelOptUtil.pushFilterPastProject(filter.getCondition(), project);
+
+            setRSFilter(call, filter, project, scan, condition);
         }
     };
-    //
-    //public static StoragePluginOptimizerRule MatchHashJoinValuesScan = new StoragePluginOptimizerRule(
-    //        //RelOptHelper.some(HashJoinPrel.class, RelOptHelper.any(ScanPrel.class)), "IndexRHashJoinValuesScan") {
-    //        RelOptHelper.any(HashJoinPrel.class), "IndexRHashJoinValuesScan") {
-    //
-    //    private ValuesPrel valuesPrel;
-    //    private ScanPrel scanPrel;
-    //
-    //    @Override
-    //    public void onMatch(RelOptRuleCall call) {
-    //        HashJoinPrel hashJoin = (HashJoinPrel) call.rel(0);
-    //
-    //        ValuesPrel valuesPrel;
-    //        ScanPrel scanPrel;
-    //
-    //        RelNode left = checkNode(hashJoin, Lists.newArrayList(BroadcastExchangePrel.class, HashAggPrel.class, ValuesPrel.class));
-    //        RelNode right = checkNode(hashJoin, Lists.newArrayList(SelectionVectorRemoverPrel.class, FilterPrel.class, ProjectPrel.class,  ScanPrel.class));
-    //        if(left != null && right != null){
-    //            valuesPrel = (ValuesPrel) left;
-    //            scanPrel = (ScanPrel) right;
-    //        }else {
-    //            left = checkNode(hashJoin, Lists.newArrayList(SelectionVectorRemoverPrel.class, FilterPrel.class, ProjectPrel.class,  ScanPrel.class));
-    //            right = checkNode(hashJoin, Lists.newArrayList(BroadcastExchangePrel.class, HashAggPrel.class, ValuesPrel.class));
-    //            if(left != null && right != null){
-    //                valuesPrel = (ValuesPrel) right;
-    //                scanPrel = (ScanPrel) left;
-    //            }else {
-    //                return;
-    //            }
-    //        }
-    //
-    //    }
-    //
-    //    @Override
-    //    public boolean matches(RelOptRuleCall call) {
-    //        HashJoinPrel hashJoin = (HashJoinPrel) call.rel(0);
-    //
-    //        ValuesPrel valuesPrel;
-    //        ScanPrel scanPrel;
-    //
-    //        RelNode left = checkNode(hashJoin, Lists.newArrayList(BroadcastExchangePrel.class, HashAggPrel.class, ValuesPrel.class))
-    //        RelNode right = checkNode(hashJoin, Lists.newArrayList(SelectionVectorRemoverPrel.class, FilterPrel.class, ProjectPrel.class,  ScanPrel.class));
-    //        if(left == null || right == null){
-    //            return false;
-    //        }
-    //
-    //        boolean[] ok = new boolean[2];
-    //        hashJoin.forEach(prel -> {
-    //
-    //            if (prel instanceof ScanPrel) {
-    //                ok[1] = true;
-    //            }
-    //        });
-    //        return ok[0] & ok[1];
-    //    }
-    //
-    //    private RelNode checkNode(RelNode node, List<Class<? extends RelNode>> clazzes) {
-    //        if(clazzes.get(0).isInstance(node)){
-    //            return null;
-    //        }
-    //        if(clazzes.size() == 1){
-    //            return node;
-    //        }
-    //        List<RelNode> children = node.getInputs();
-    //        if (children.isEmpty()) {
-    //            return null;
-    //        }
-    //        return checkNode(children.get(0), clazzes.subList(1, clazzes.size()));
-    //    }
-    //};
-
-
 }
