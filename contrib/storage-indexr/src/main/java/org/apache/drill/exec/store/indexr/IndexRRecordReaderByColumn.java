@@ -44,7 +44,7 @@ import io.indexr.util.MemoryUtil;
 
 public class IndexRRecordReaderByColumn extends IndexRRecordReader {
     private static final Logger log = LoggerFactory.getLogger(IndexRRecordReaderByColumn.class);
-    private static final int TARGET_RECORD_COUNT = DataPack.MAX_COUNT;
+    private static final int TARGET_RECORD_COUNT = DataPack.MAX_COUNT >>> 2; // One quarter of full pack.
 
     private BytePiece bytePiece = new BytePiece();
     private ByteBuffer byteBuffer = MemoryUtil.getHollowDirectByteBuffer();
@@ -64,6 +64,7 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
         for (int i = 0; i < columns.length; i++) {
             columns[i] = segment.column(i);
         }
+        log.debug("========= rsFilter {}", rsFilter);
         if (rsFilter == null) {
             packRSResults = new byte[columns[0].packCount()];
             for (int i = 0; i < packRSResults.length; i++) {
@@ -76,21 +77,21 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
 
     @Override
     public int next() {
-        log.error("=========next(), segment: {}, rsFilter:{}, curPackId: {}", segment, rsFilter, curPackId);
         int rowCount = 0;
         while (curPackId < packRSResults.length && rowCount < TARGET_RECORD_COUNT) {
             byte rsValue = packRSResults[curPackId];
             switch (rsValue) {
                 case RSValue.None:
-                    log.error("=========rs filter ignore pack {}", curPackId);
+                    log.debug("=========rs filter ignore pack {}", curPackId);
                     // Ignore pack.
                     break;
                 case RSValue.Some:
-                    rowCount += processSomePack(curPackId, rowCount);
+                    rowCount += traversePack(curPackId, rowCount);
                     break;
                 case RSValue.All:
-                    log.error("=========rs filter found ALL pack {}", curPackId);
-                    rowCount += processSomePack(curPackId, rowCount);
+                    log.debug("=========rs filter found ALL pack {}", curPackId);
+                    // TODO handle aggregation push down.
+                    rowCount += traversePack(curPackId, rowCount);
                     break;
                 default:
                     throw new IllegalStateException("error rs value: " + rsValue);
@@ -100,9 +101,7 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
         return rowCount;
     }
 
-    private int processSomePack(int packId, int preRowCount) {
-        // Only filter none pack for now.
-        // TODO handle All case.
+    private int traversePack(int packId, int preRowCount) {
         DataPack[] dataPacks = new DataPack[projectedColumnInfos.length];
         for (int i = 0; i < projectedColumnInfos.length; i++) {
             dataPacks[i] = columns[projectedColumnInfos[i].columnId].pack(packId);

@@ -3,6 +3,7 @@
     indexr : {
       type:"indexr",
       enabled: true,
+      enableRSFilter: true,
       dataDir: "/data/indexr/segments"
     }
   }

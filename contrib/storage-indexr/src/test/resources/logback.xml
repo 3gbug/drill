@@ -34,22 +34,22 @@
   </appender>
 
   <logger name="org.apache.drill" additivity="false">
-    <level value="info" />
-    <appender-ref ref="FILE" />
+    <level value="error" />
+    <appender-ref ref="STDOUT" />
   </logger>
 
   <logger name="org.apache.drill" additivity="false">
-    <level value="all" />
-    <appender-ref ref="FILE" />
-  </logger>
-
-  <logger name="org.apache.hadoop" additivity="false">
     <level value="info" />
     <appender-ref ref="FILE" />
   </logger>
 
+  <logger name="org.apache.drill.exec.store.indexr" additivity="false">
+    <level value="debug" />
+    <appender-ref ref="STDOUT" />
+  </logger>
+
   <root>
-    <level value="all" />
+    <level value="error" />
     <appender-ref ref="STDOUT" />
   </root>
 

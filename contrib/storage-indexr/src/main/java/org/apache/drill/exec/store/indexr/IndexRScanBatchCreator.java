@@ -40,7 +40,7 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
     @Override
     public ScanBatch getBatch(FragmentContext context, IndexRSubScan subScan, List<RecordBatch> children)
             throws ExecutionSetupException {
-        logger.info("=====================  getBatch subScan.getSpec - " + subScan.getSpec());
+        logger.debug("=====================  getBatch subScan.getSpec - " + subScan.getSpec());
 
         Preconditions.checkArgument(children.isEmpty());
 
@@ -64,7 +64,7 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
             );
         }
 
-        logger.info("==========toScanSegments: {}", toScanSegments);
+        logger.debug("==========toScanSegments: {}", toScanSegments);
 
         List<RecordReader> assignReaders = new ArrayList<>();
         if (toScanSegments.isEmpty()) {

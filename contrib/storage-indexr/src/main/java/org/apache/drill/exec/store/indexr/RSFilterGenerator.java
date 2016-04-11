@@ -99,45 +99,45 @@ public class RSFilterGenerator extends AbstractExprVisitor<RCOperator, Void, Run
         String fieldName = processor.getPath().getAsUnescapedPath();
         switch (processor.getFunctionName()) {
             case "equal": {
-                Equal op = new Equal(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new Equal(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             case "not_equal": {
-                NotEqual op = new NotEqual(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new NotEqual(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             case "greater_than_or_equal_to": {
-                GreaterEqual op = new GreaterEqual(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new GreaterEqual(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             case "greater_than": {
-                Greater op = new Greater(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new Greater(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             case "less_than_or_equal_to": {
-                LessEqual op = new LessEqual(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new LessEqual(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             case "less_than": {
-                Less op = new Less(getColId(processor.getPath()));
-                op.setNumValue(processor.getNumValue());
-                op.setStrValue(processor.getStrValue());
-                operator = op;
+                operator = new Less(
+                        getColId(processor.getPath()),
+                        processor.getNumValue(),
+                        processor.getStrValue());
                 break;
             }
             default:

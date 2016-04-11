@@ -62,7 +62,7 @@ public class IndexRSubScan extends AbstractBase implements SubScan {
         this.spec = spec;
         this.columns = columns;
 
-        logger.info("=====================  IndexRSubScan spec - " + spec + " columns - " + columns);
+        logger.debug("=====================  IndexRSubScan spec - " + spec + " columns - " + columns);
     }
 
     @JsonIgnore

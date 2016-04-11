@@ -157,7 +157,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-        logger.info("=====================  getNewWithChildren, columns - " + columns);
+        logger.debug("=====================  getNewWithChildren, columns - " + columns);
 
         Preconditions.checkArgument(children.isEmpty());
         return new IndexRGroupScan(this);
@@ -170,7 +170,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     @Override
     public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
-        logger.info("=====================  applyAssignments endpoints - " + endpoints);
+        logger.debug("=====================  applyAssignments endpoints - " + endpoints);
 
         Map<DrillbitEndpoint, List<Integer>> endpointToFragments = new HashMap<>();
         Map<Integer, DrillbitEndpoint> fragmentToEndpoint = new HashMap<>();
@@ -192,12 +192,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
             List<Integer> fragmentIds = endpointToFragments.get(e.getValue());
             assignments.putAll(e.getKey(), fragmentIds);
         }
-        logger.info("=====================  applyAssignments assignments - " + assignments);
+        logger.debug("=====================  applyAssignments assignments - " + assignments);
     }
 
     @Override
     public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
-        logger.info("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
+        logger.debug("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
 
         List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
 

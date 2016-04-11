@@ -53,7 +53,7 @@ public class IndexRPushDownRSFilter {
                 new DrillParseContext(PrelUtil.getPlannerSettings(call.getPlanner())), scan, condition);
         RSFilterGenerator generator = new RSFilterGenerator(groupScan, conditionExp);
         RCOperator rsFilter = generator.rsFilter();
-        log.info("================= rsFilter:" + rsFilter);
+        log.debug("================= rsFilter:" + rsFilter);
         groupScan.getScanSpec().setRsFilter(rsFilter);
     }
 

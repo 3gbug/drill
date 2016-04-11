@@ -32,13 +32,16 @@ public class IndexRStoragePluginConfig extends StoragePluginConfigBase {
 
     private final String dataDir;
     private final Integer scanThreadsPerNode;
+    private final boolean enableRSFilter;
 
     @JsonCreator
     public IndexRStoragePluginConfig(
             @JsonProperty("dataDir") String dataDir,
-            @JsonProperty("scanThreadsPerNode") Integer scanThreadsPerNode) {
+            @JsonProperty("scanThreadsPerNode") Integer scanThreadsPerNode,
+            @JsonProperty("enableRSFilter") Boolean enableRSFilter) {
         this.dataDir = dataDir;
         this.scanThreadsPerNode = scanThreadsPerNode != null && scanThreadsPerNode > 0 ? scanThreadsPerNode : 1;
+        this.enableRSFilter = enableRSFilter != null ? enableRSFilter : true;
     }
 
     @JsonProperty("dataDir")
@@ -49,6 +52,11 @@ public class IndexRStoragePluginConfig extends StoragePluginConfigBase {
     @JsonProperty("scanThreadsPerNode")
     public int getScanThreadsPerNode() {
         return scanThreadsPerNode;
+    }
+
+    @JsonProperty("enableRSFilter")
+    public boolean getEnableRSFilter() {
+        return enableRSFilter;
     }
 
     @Override

@@ -36,11 +36,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 
 public class IndexRStoragePlugin extends AbstractStoragePlugin {
     private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
+    private static final String ENABLE_RSFILTER = "planner.indexr.enable_rsfilter";
 
     private final IndexRStoragePluginConfig engineConfig;
     private final DrillbitContext context;
@@ -105,9 +107,15 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
 
     @Override
     public Set<? extends RelOptRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-        return Sets.newHashSet(
-                IndexRPushDownRSFilter.MatchFilterScan,
-                IndexRPushDownRSFilter.MatchFilterProjectScan);
+        boolean enableRSFilter = engineConfig.getEnableRSFilter();
+        log.debug("=====================  getPhysicalOptimizerRules enableRSFilter - {}", enableRSFilter);
+        if (enableRSFilter) {
+            return Sets.newHashSet(
+                    IndexRPushDownRSFilter.MatchFilterScan,
+                    IndexRPushDownRSFilter.MatchFilterProjectScan);
+        } else {
+            return Collections.emptySet();
+        }
     }
 
     @Override
