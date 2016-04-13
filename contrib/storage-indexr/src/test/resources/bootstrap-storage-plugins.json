@@ -3,7 +3,8 @@
     indexr : {
       type:"indexr",
       enabled: true,
-      enableRSFilter: true,
+      enableRSFilter: false,
+      scanThreadsPerNode: 4,
       dataDir: "/data/indexr/segments"
     }
   }

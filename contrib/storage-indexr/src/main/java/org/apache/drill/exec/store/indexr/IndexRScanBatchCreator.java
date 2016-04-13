@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 import io.indexr.segment.Segment;
 
@@ -45,19 +44,18 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
         Preconditions.checkArgument(children.isEmpty());
 
         FakeSegmentManager segmentManager = subScan.getPlugin().segmentManager();
-        Map<String, Segment> idToSegment = segmentManager.getSegmentMap(subScan.getSpec().tableName);
-        List<Segment> segments = segmentManager.getSegmentList(subScan.getSpec().tableName);
         IndexRSubScanSpec spec = subScan.getSpec();
+        List<Segment> segments = segmentManager.getSegmentList(spec.tableName);
 
         List<Segment> toScanSegments = new ArrayList<>();
-        if (spec.parallelization >= idToSegment.size()) {
-            if (spec.parallelizationIndex >= idToSegment.size()) {
+        if (spec.parallelization >= segments.size()) {
+            if (spec.parallelizationIndex >= segments.size()) {
                 logger.warn("subScan with spec {} have not record reader to assign", spec);
             } else {
                 toScanSegments.add(segments.get(spec.parallelizationIndex));
             }
         } else {
-            double assignScale = ((double) idToSegment.size() / spec.parallelization);
+            double assignScale = ((double) segments.size() / spec.parallelization);
             toScanSegments = segments.subList(
                     (int) (spec.parallelizationIndex * assignScale),
                     (int) ((spec.parallelizationIndex + 1) * assignScale)
@@ -68,7 +66,8 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
 
         List<RecordReader> assignReaders = new ArrayList<>();
         if (toScanSegments.isEmpty()) {
-            assignReaders.add(new EmptyRecordReader());
+            // Make drill happy.
+            assignReaders.add(new EmptyRecordReader(segmentManager.getSchema(spec.tableName)));
         } else {
             for (Segment segment : toScanSegments) {
                 assignReaders.add(IndexRRecordReader.create(

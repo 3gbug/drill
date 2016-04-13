@@ -53,7 +53,16 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
     private byte[] packRSResults;
     private int curPackId = 0;
 
-    public IndexRRecordReaderByColumn(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
+    /**
+     * Create a new IndexRRecordReaderByColumn instance.
+     *
+     * @param fromPackId include
+     * @param toPackId   exclude
+     */
+    public IndexRRecordReaderByColumn(Segment segment,
+                                      List<SchemaPath> projectColumns,
+                                      FragmentContext context,
+                                      RCOperator rsFilter) {
         super(segment, projectColumns, context, rsFilter);
     }
 
