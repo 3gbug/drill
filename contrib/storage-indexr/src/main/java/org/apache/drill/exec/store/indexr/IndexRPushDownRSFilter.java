@@ -38,7 +38,7 @@ import io.indexr.segment.rc.RCOperator;
 public class IndexRPushDownRSFilter {
     private static final Logger log = LoggerFactory.getLogger(IndexRPushDownRSFilter.class);
 
-    private static void setRSFilter(RelOptRuleCall call, FilterPrel filter, ProjectPrel project, ScanPrel scan, RexNode condition) {
+    private static void setRSFilter(RelOptRuleCall call, ScanPrel scan, RexNode condition) {
         GroupScan gs = scan.getGroupScan();
         if (gs == null || !(gs instanceof IndexRGroupScan)) {
             return;
@@ -65,7 +65,7 @@ public class IndexRPushDownRSFilter {
             ScanPrel scan = (ScanPrel) call.rel(1);
             RexNode condition = filter.getCondition();
 
-            setRSFilter(call, filter, null, scan, condition);
+            setRSFilter(call, scan, condition);
         }
     };
 
@@ -78,7 +78,7 @@ public class IndexRPushDownRSFilter {
             ScanPrel scan = (ScanPrel) call.rel(2);
             RexNode condition = RelOptUtil.pushFilterPastProject(filter.getCondition(), project);
 
-            setRSFilter(call, filter, project, scan, condition);
+            setRSFilter(call, scan, condition);
         }
     };
 }
