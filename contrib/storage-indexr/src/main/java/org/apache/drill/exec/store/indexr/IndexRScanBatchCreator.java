@@ -71,7 +71,8 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
         } else {
             for (Segment segment : toScanSegments) {
                 assignReaders.add(IndexRRecordReader.create(
-                        segment,
+                        spec.tableName,
+                        segment.solidify(),
                         subScan.getColumns(),
                         context,
                         spec.rsFilter));

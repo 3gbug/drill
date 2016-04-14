@@ -26,9 +26,8 @@ import org.apache.drill.common.expression.visitors.AbstractExprVisitor;
 import java.util.ArrayList;
 import java.util.List;
 
-import io.indexr.segment.ColumnSchema;
-import io.indexr.segment.SegmentSchema;
 import io.indexr.segment.rc.And;
+import io.indexr.segment.rc.Attr;
 import io.indexr.segment.rc.Equal;
 import io.indexr.segment.rc.Greater;
 import io.indexr.segment.rc.GreaterEqual;
@@ -39,7 +38,6 @@ import io.indexr.segment.rc.NotEqual;
 import io.indexr.segment.rc.Or;
 import io.indexr.segment.rc.RCOperator;
 import io.indexr.segment.rc.UnknownOperator;
-import io.indexr.util.Pair;
 
 public class RSFilterGenerator extends AbstractExprVisitor<RCOperator, Void, RuntimeException> {
     private IndexRGroupScan groupScan;
@@ -100,42 +98,42 @@ public class RSFilterGenerator extends AbstractExprVisitor<RCOperator, Void, Run
         switch (processor.getFunctionName()) {
             case "equal": {
                 operator = new Equal(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
             }
             case "not_equal": {
                 operator = new NotEqual(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
             }
             case "greater_than_or_equal_to": {
                 operator = new GreaterEqual(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
             }
             case "greater_than": {
                 operator = new Greater(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
             }
             case "less_than_or_equal_to": {
                 operator = new LessEqual(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
             }
             case "less_than": {
                 operator = new Less(
-                        getColId(processor.getPath()),
+                        genAttr(processor.getPath()),
                         processor.getNumValue(),
                         processor.getStrValue());
                 break;
@@ -150,9 +148,7 @@ public class RSFilterGenerator extends AbstractExprVisitor<RCOperator, Void, Run
         return operator;
     }
 
-    private int getColId(SchemaPath path) {
-        SegmentSchema schema = groupScan.getStoragePlugin().segmentManager().getSchema(groupScan.getScanSpec().getTableName());
-        Pair<ColumnSchema, Integer> p = DrillIndexRTable.mapColumn(schema, path);
-        return p.second;
+    private Attr genAttr(SchemaPath path) {
+        return new Attr(DrillIndexRTable.toColName(groupScan.getScanSpec().getTableName(), path));
     }
 }

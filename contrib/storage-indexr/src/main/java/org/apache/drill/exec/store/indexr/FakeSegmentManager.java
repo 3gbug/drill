@@ -17,7 +17,6 @@
  */
 package org.apache.drill.exec.store.indexr;
 
-import org.apache.commons.collections.map.UnmodifiableMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,7 +38,6 @@ import io.indexr.segment.SegmentSchema;
 import io.indexr.segment.pack.DPSegment;
 import io.indexr.util.ExtraStringUtil;
 import io.indexr.util.JsonUtil;
-import io.indexr.util.Trick;
 
 public class FakeSegmentManager {
     private static final Logger log = LoggerFactory.getLogger(FakeSegmentManager.class);
@@ -66,7 +64,7 @@ public class FakeSegmentManager {
                         .collect(Collectors.toMap(Segment::name, p -> p));
                 tables.put(
                         schema.name,
-                        new FakeTable(schema, UnmodifiableMap.decorate(idToSegment)));
+                        new FakeTable(schema, Collections.unmodifiableList(new ArrayList<>(idToSegment.values()))));
             } catch (IOException e) {
                 log.warn("", e);
             }
@@ -79,7 +77,7 @@ public class FakeSegmentManager {
             System.out.println("======================");
             System.out.println(String.format("table: %s", table.schema.name));
             System.out.println("segments:");
-            table.idToSegment.values().forEach(segment -> {
+            table.segments.forEach(segment -> {
                 System.out.println(segment.toString());
             });
         });
@@ -97,7 +95,7 @@ public class FakeSegmentManager {
         return tables.keySet();
     }
 
-    public SegmentSchema getSchema(String name){
+    public SegmentSchema getSchema(String name) {
         FakeTable table = tables.get(name.toLowerCase());
         if (table == null) {
             return null;
@@ -113,41 +111,27 @@ public class FakeSegmentManager {
         return new DrillIndexRTable(plugin, spec, table.schema);
     }
 
-    public Map<String, Segment> getSegmentMap(String tableName) {
-        FakeTable table = tables.get(tableName.toLowerCase());
-        return table == null
-                ? Collections.emptyMap()
-                : table.idToSegment;
-    }
-
     public List<Segment> getSegmentList(String tableName) {
         FakeTable table = tables.get(tableName.toLowerCase());
         return table == null
                 ? Collections.emptyList()
-                : new ArrayList<>(table.idToSegment.values());
-    }
-
-    public List<String> getSegmentIdList(String tableName) {
-        FakeTable table = tables.get(tableName.toLowerCase());
-        return table == null
-                ? Collections.emptyList()
-                : Trick.mapToList(table.idToSegment.keySet(), a -> a);
+                : table.segments;
     }
 
     public int getSegmentCount(String tableName) {
         FakeTable table = tables.get(tableName.toLowerCase());
         return table == null
                 ? 0
-                : table.idToSegment.size();
+                : table.segments.size();
     }
 
     public static class FakeTable {
         public final SegmentSchema schema;
-        public final Map<String, Segment> idToSegment;
+        public final List<Segment> segments;
 
-        public FakeTable(SegmentSchema schema, Map<String, Segment> idToSegment) {
+        public FakeTable(SegmentSchema schema, List<Segment> segments) {
             this.schema = schema;
-            this.idToSegment = idToSegment;
+            this.segments = segments;
         }
     }
 

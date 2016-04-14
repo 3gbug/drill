@@ -42,8 +42,12 @@ public class IndexRRecordReaderByRow extends IndexRRecordReader {
 
     private Iterator<Row> segmentRowItr;
 
-    public IndexRRecordReaderByRow(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
-        super(segment, projectColumns, context, rsFilter);
+    public IndexRRecordReaderByRow(String tableName,
+                                   Segment segment,
+                                   List<SchemaPath> projectColumns,
+                                   FragmentContext context,
+                                   RCOperator rsFilter) {
+        super(tableName, segment, projectColumns, context, rsFilter);
     }
 
     @Override

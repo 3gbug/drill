@@ -85,10 +85,18 @@ public class DrillIndexRTable extends DynamicDrillTable {
         }
     }
 
-    public static Pair<ColumnSchema, Integer> mapColumn(SegmentSchema segmentSchema, SchemaPath schemaPath) {
-        String colName = StringUtils.removeStart(
+    public static Pair<ColumnSchema, Integer> mapColumn(String tableName, SegmentSchema segmentSchema, SchemaPath schemaPath) {
+        String colName = toColName(tableName, schemaPath);
+        return mapColumn(segmentSchema, colName);
+    }
+
+    public static String toColName(String tableName, SchemaPath schemaPath) {
+        return StringUtils.removeStart(
                 schemaPath.getAsUnescapedPath().toLowerCase(),
-                segmentSchema.name + "."); // remove the table name.
+                tableName + "."); // remove the table name.
+    }
+
+    public static Pair<ColumnSchema, Integer> mapColumn(SegmentSchema segmentSchema, String colName) {
         int[] ordinal = new int[]{-1};
         ColumnSchema cs = segmentSchema.columns.stream().filter(
                 s -> {

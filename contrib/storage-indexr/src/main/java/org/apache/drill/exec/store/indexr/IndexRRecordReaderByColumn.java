@@ -55,15 +55,16 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
 
     /**
      * Create a new IndexRRecordReaderByColumn instance.
-     *
-     * @param fromPackId include
-     * @param toPackId   exclude
+     * <p/>
+     * //* @param fromPackId include
+     * //* @param toPackId   exclude
      */
-    public IndexRRecordReaderByColumn(Segment segment,
+    public IndexRRecordReaderByColumn(String tableName,
+                                      Segment segment,
                                       List<SchemaPath> projectColumns,
                                       FragmentContext context,
                                       RCOperator rsFilter) {
-        super(segment, projectColumns, context, rsFilter);
+        super(tableName, segment, projectColumns, context, rsFilter);
     }
 
     @Override
@@ -80,12 +81,19 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
                 packRSResults[i] = RSValue.Some;
             }
         } else {
-            packRSResults = rsFilter.roughCheck(columns);
+            if (!rsFilter.roughCheckOnColumn(segment)) {
+                log.debug("========= rs filter ignore segment {}", segment.name());
+            } else {
+                packRSResults = rsFilter.roughCheckOnPack(segment);
+            }
         }
     }
 
     @Override
     public int next() {
+        if (packRSResults == null) {
+            return 0;
+        }
         int rowCount = 0;
         while (curPackId < packRSResults.length && rowCount < TARGET_RECORD_COUNT) {
             byte rsValue = packRSResults[curPackId];

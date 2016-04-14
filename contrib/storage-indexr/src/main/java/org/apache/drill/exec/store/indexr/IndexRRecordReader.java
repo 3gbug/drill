@@ -43,6 +43,7 @@ import io.indexr.util.Pair;
 public abstract class IndexRRecordReader extends AbstractRecordReader {
     private static final Logger log = LoggerFactory.getLogger(IndexRRecordReader.class);
 
+    final String tableName;
     final Segment segment;
     final RCOperator rsFilter;
     ProjectedColumnInfo[] projectedColumnInfos;
@@ -62,7 +63,8 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
         }
     }
 
-    IndexRRecordReader(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
+    IndexRRecordReader(String tableName, Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
+        this.tableName = tableName;
         this.segment = segment;
         this.rsFilter = rsFilter;
 
@@ -71,10 +73,10 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
         setColumns(projectColumns);
     }
 
-    public static IndexRRecordReader create(Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
+    public static IndexRRecordReader create(String tableName, Segment segment, List<SchemaPath> projectColumns, FragmentContext context, RCOperator rsFilter) {
         return segment.column(0) == null
-                ? new IndexRRecordReaderByRow(segment, projectColumns, context, rsFilter)
-                : new IndexRRecordReaderByColumn(segment, projectColumns, context, rsFilter);
+                ? new IndexRRecordReaderByRow(tableName, segment, projectColumns, context, rsFilter)
+                : new IndexRRecordReaderByColumn(tableName, segment, projectColumns, context, rsFilter);
     }
 
     @SuppressWarnings("unchecked")
@@ -110,7 +112,7 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
             projectedColumnInfos = new ProjectedColumnInfo[this.getColumns().size()];
             int count = 0;
             for (SchemaPath schemaPath : this.getColumns()) {
-                Pair<ColumnSchema, Integer> p = DrillIndexRTable.mapColumn(segment.schema(), schemaPath);
+                Pair<ColumnSchema, Integer> p = DrillIndexRTable.mapColumn(tableName, segment.schema(), schemaPath);
                 if (p == null) {
                     throw new RuntimeException(String.format(
                             "Column not found! SchemaPath: %s, search segment schema: %s",
