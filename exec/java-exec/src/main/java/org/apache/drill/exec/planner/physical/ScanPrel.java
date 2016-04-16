@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 
+import org.apache.calcite.sql.SqlNode;
 import org.apache.drill.common.exceptions.DrillRuntimeException;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.exec.physical.base.GroupScan;
@@ -45,24 +46,31 @@ public class ScanPrel extends AbstractRelNode implements DrillScanPrel {
 
   protected final GroupScan groupScan;
   private final RelDataType rowType;
+  private final SqlNode filter;
 
   public ScanPrel(RelOptCluster cluster, RelTraitSet traits,
-      GroupScan groupScan, RelDataType rowType) {
+      GroupScan groupScan, RelDataType rowType, SqlNode filter) {
     super(cluster, traits);
     this.groupScan = getCopy(groupScan);
     this.rowType = rowType;
+    this.filter = filter;
+  }
+
+  @Override
+  public SqlNode getFilter() {
+    return filter;
   }
 
   @Override
   public RelNode copy(RelTraitSet traitSet, List<RelNode> inputs) {
     return new ScanPrel(this.getCluster(), traitSet, groupScan,
-        this.rowType);
+        this.rowType, filter);
   }
 
   @Override
   protected Object clone() throws CloneNotSupportedException {
     return new ScanPrel(this.getCluster(), this.getTraitSet(), getCopy(groupScan),
-        this.rowType);
+        this.rowType, filter);
   }
 
   private static GroupScan getCopy(GroupScan scan){
@@ -85,8 +93,8 @@ public class ScanPrel extends AbstractRelNode implements DrillScanPrel {
   }
 
   public static ScanPrel create(RelNode old, RelTraitSet traitSets,
-      GroupScan scan, RelDataType rowType) {
-    return new ScanPrel(old.getCluster(), traitSets, getCopy(scan), rowType);
+      GroupScan scan, RelDataType rowType, SqlNode filter) {
+    return new ScanPrel(old.getCluster(), traitSets, getCopy(scan), rowType, filter);
   }
 
   @Override

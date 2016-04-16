@@ -132,7 +132,7 @@ public class ConvertCountToDirectScan extends Prule {
 
       final ScanPrel newScan = ScanPrel.create(scan,
           scan.getTraitSet().plus(Prel.DRILL_PHYSICAL).plus(DrillDistributionTrait.SINGLETON), getCountDirectScan(cnt),
-          scanRowType);
+          scanRowType, scan.getTable().getFilter());
 
       List<RexNode> exprs = Lists.newArrayList();
       exprs.add(RexInputRef.of(0, scanRowType));

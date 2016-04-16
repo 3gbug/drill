@@ -17,10 +17,13 @@
  */
 package org.apache.drill.exec.planner.physical;
 
+import org.apache.calcite.sql.SqlNode;
 import org.apache.drill.exec.physical.base.GroupScan;
 
 public interface DrillScanPrel extends Prel{
 
   public GroupScan getGroupScan();
+
+  public SqlNode getFilter();
 
 }
