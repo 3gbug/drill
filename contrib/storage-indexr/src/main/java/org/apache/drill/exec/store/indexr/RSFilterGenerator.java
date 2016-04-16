@@ -17,7 +17,10 @@ public class RSFilterGenerator implements SqlVisitor<RCOperator> {
     this.tableSchema = tableSchema;
   }
 
-  public RCOperator gen(SqlNode filter) {
+  public RCOperator toRSFilter(SqlNode filter) {
+    if (filter == null) {
+      return null;
+    }
     return filter.accept(this).optimize();
   }
 
@@ -119,7 +122,6 @@ public class RSFilterGenerator implements SqlVisitor<RCOperator> {
         return new GreaterEqual(av.attr, av.num, av.str);
       }
       case IN: {
-        // TODO
         Attr attr = toAttr(call.operand(0));
         SqlNode vns = call.operand(1);
         assert vns instanceof SqlNodeList;

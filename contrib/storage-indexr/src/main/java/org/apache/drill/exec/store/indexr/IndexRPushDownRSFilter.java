@@ -43,7 +43,7 @@ public class IndexRPushDownRSFilter {
         return;
       }
       SegmentSchema schema = groupScan.getStoragePlugin().segmentManager().getSchema(groupScan.getScanSpec().getTableName());
-      RCOperator rsFilter = new RSFilterGenerator(schema).gen(scan.getFilter());
+      RCOperator rsFilter = new RSFilterGenerator(schema).toRSFilter(scan.getFilter());
       log.debug("================= rsFilter:" + rsFilter);
       groupScan.getScanSpec().setRSFilter(rsFilter);
     }

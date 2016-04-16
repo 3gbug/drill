@@ -25,9 +25,9 @@ public class TestIndexRPlugin extends BaseTestQuery {
 
   @Test
   public void testIndexr() throws Exception {
-    //test("use indexr;");
-    //test("show tables;");
-    //test("describe campaign");
+    test("use indexr;");
+    test("show tables;");
+    test("describe campaign");
 
     // 19 is the limit for drill transform in into hashjoin!
 
@@ -35,6 +35,7 @@ public class TestIndexRPlugin extends BaseTestQuery {
       "where `date` between 9 and 1000000000 " +
       "and campaign_id in (0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20) " +
       "group by campaign_id limit 10");
+    test("select campaign_id, sum(clicks) from indexr.campaign group by campaign_id limit 10");
   }
 
 }
