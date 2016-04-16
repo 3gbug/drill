@@ -19,37 +19,39 @@ package org.apache.drill.exec.store.indexr;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-
 import io.indexr.segment.rc.RCOperator;
 
 public class IndexRSubScanSpec {
-    @JsonProperty("tableName")
-    public final String tableName;
-    @JsonProperty("parallelization")
-    public final Integer parallelization;
-    @JsonProperty("parallelizationIndex")
-    public final Integer parallelizationIndex;
-    @JsonProperty("rsFilter")
-    public final RCOperator rsFilter;
+  @JsonProperty("tableName")
+  public final String tableName;
 
-    @JsonCreator
-    public IndexRSubScanSpec(@JsonProperty("tableName") String tableName,
-                             @JsonProperty("parallelization") Integer parallelization,
-                             @JsonProperty("parallelizationIndex") Integer parallelizationIndex,
-                             @JsonProperty("rsFilter") RCOperator rsFilter) {
-        this.tableName = tableName;
-        this.parallelization = parallelization;
-        this.parallelizationIndex = parallelizationIndex;
-        this.rsFilter = rsFilter;
-    }
+  @JsonProperty("parallelization")
+  public final Integer parallelization;
 
-    @Override
-    public String toString() {
-        return "IndexRSubScanSpec{" +
-                "tableName='" + tableName + '\'' +
-                ", parallelization=" + parallelization +
-                ", parallelizationIndex=" + parallelizationIndex +
-                ", rsFilter=" + rsFilter +
-                '}';
-    }
+  @JsonProperty("parallelizationIndex")
+  public final Integer parallelizationIndex;
+
+  @JsonProperty("rsFilter")
+  public final RCOperator rsFilter;
+
+  @JsonCreator
+  public IndexRSubScanSpec(@JsonProperty("tableName") String tableName, //
+                           @JsonProperty("parallelization") Integer parallelization, //
+                           @JsonProperty("parallelizationIndex") Integer parallelizationIndex,//
+                           @JsonProperty("rsFilter") RCOperator rsFilter) {
+    this.tableName = tableName;
+    this.parallelization = parallelization;
+    this.parallelizationIndex = parallelizationIndex;
+    this.rsFilter = rsFilter;
+  }
+
+  @Override
+  public String toString() {
+    return "IndexRSubScanSpec{" +
+      "tableName='" + tableName + '\'' +
+      ", parallelization=" + parallelization +
+      ", parallelizationIndex=" + parallelizationIndex +
+      ", rsFilter=" + rsFilter +
+      '}';
+  }
 }

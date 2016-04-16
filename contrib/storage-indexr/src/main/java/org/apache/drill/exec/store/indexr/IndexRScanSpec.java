@@ -20,39 +20,50 @@ package org.apache.drill.exec.store.indexr;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
-
 import io.indexr.segment.rc.RCOperator;
 
 public class IndexRScanSpec {
-    private final String tableName;
+  private final String tableName;
 
-    private RCOperator rsFilter;
+  private RCOperator rsFilter;
 
-    @JsonCreator
-    public IndexRScanSpec(@JsonProperty("tableName") String tableName) {
-        this.tableName = tableName;
-    }
+  private RCOperator inRSFilter;
 
-    @JsonProperty("tableName")
-    public String getTableName() {
-        return tableName;
-    }
+  @JsonCreator
+  public IndexRScanSpec(@JsonProperty("tableName") String tableName) {
+    this.tableName = tableName;
+  }
 
-    @JsonProperty("rsFilter")
-    public RCOperator getRsFilter() {
-        return rsFilter;
-    }
+  @JsonProperty("tableName")
+  public String getTableName() {
+    return tableName;
+  }
 
-    @JsonSetter("rsFilter")
-    public void setRsFilter(RCOperator rsFilter) {
-        this.rsFilter = rsFilter;
-    }
+  @JsonProperty("rsFilter")
+  public RCOperator getRSFilter() {
+    return rsFilter;
+  }
 
-    @Override
-    public String toString() {
-        return "{" +
-                "tableName='" + tableName + '\'' +
-                ", rsFilter=" + rsFilter +
-                '}';
-    }
+  @JsonSetter("rsFilter")
+  public void setRSFilter(RCOperator rsFilter) {
+    this.rsFilter = rsFilter;
+  }
+
+  @JsonSetter("inRSFilter")
+  public RCOperator getInRSFilter() {
+    return inRSFilter;
+  }
+
+  @JsonSetter("inRSFilter")
+  public void setInRSFilter(RCOperator inRSFilter) {
+    this.inRSFilter = inRSFilter;
+  }
+
+  @Override
+  public String toString() {
+    return "{" +
+      "tableName='" + tableName + '\'' +
+      ", rsFilter=" + rsFilter +
+      '}';
+  }
 }

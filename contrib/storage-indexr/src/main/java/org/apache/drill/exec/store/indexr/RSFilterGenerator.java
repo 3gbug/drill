@@ -1,154 +1,196 @@
-/**
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership.  The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License.  You may obtain a copy of the License at
- * <p/>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p/>
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
 package org.apache.drill.exec.store.indexr;
 
-import org.apache.drill.common.expression.BooleanOperator;
-import org.apache.drill.common.expression.FunctionCall;
-import org.apache.drill.common.expression.LogicalExpression;
-import org.apache.drill.common.expression.SchemaPath;
-import org.apache.drill.common.expression.visitors.AbstractExprVisitor;
+import io.indexr.segment.ColumnSchema;
+import io.indexr.segment.ColumnType;
+import io.indexr.segment.SegmentSchema;
+import io.indexr.segment.rc.*;
+import io.indexr.util.Trick;
+import org.apache.calcite.sql.*;
+import org.apache.calcite.sql.util.SqlVisitor;
 
-import java.util.ArrayList;
 import java.util.List;
 
-import io.indexr.segment.rc.And;
-import io.indexr.segment.rc.Attr;
-import io.indexr.segment.rc.Equal;
-import io.indexr.segment.rc.Greater;
-import io.indexr.segment.rc.GreaterEqual;
-import io.indexr.segment.rc.Less;
-import io.indexr.segment.rc.LessEqual;
-import io.indexr.segment.rc.Not;
-import io.indexr.segment.rc.NotEqual;
-import io.indexr.segment.rc.Or;
-import io.indexr.segment.rc.RCOperator;
-import io.indexr.segment.rc.UnknownOperator;
+public class RSFilterGenerator implements SqlVisitor<RCOperator> {
+  private final SegmentSchema tableSchema;
 
-public class RSFilterGenerator extends AbstractExprVisitor<RCOperator, Void, RuntimeException> {
-    private IndexRGroupScan groupScan;
-    private LogicalExpression conditionExpr;
+  public RSFilterGenerator(SegmentSchema tableSchema) {
+    this.tableSchema = tableSchema;
+  }
 
-    private CmpOpProcessor processor = new CmpOpProcessor();
+  public RCOperator gen(SqlNode filter) {
+    return filter.accept(this).optimize();
+  }
 
-    public RSFilterGenerator(IndexRGroupScan groupScan, LogicalExpression conditionExpr) {
-        this.groupScan = groupScan;
-        this.conditionExpr = conditionExpr;
+  private Attr toAttr(SqlNode node) {
+    assert node instanceof SqlIdentifier;
+    SqlIdentifier identifier = (SqlIdentifier) node;
+    return new Attr(identifier.names.get(identifier.names.size() - 1));
+  }
+
+  private ColumnSchema toColumn(String fieldName) {
+    for (ColumnSchema cs : tableSchema.columns) {
+      if (cs.name.equalsIgnoreCase(fieldName)) {
+        return cs;
+      }
     }
+    throw new RuntimeException(String.format("Field %s not found!", fieldName));
+  }
 
-    public RCOperator rsFilter() {
-        RCOperator rsFilter = conditionExpr.accept(this, null);
-        rsFilter = rsFilter.optimize();
-        rsFilter = rsFilter.applyNot().applyNot(); // not not -> nothing!
-        rsFilter = rsFilter.optimize();
-        return rsFilter;
+  private long toNumLiteral(ColumnSchema cs, SqlNode node) {
+    assert node instanceof SqlLiteral;
+    SqlLiteral num = (SqlLiteral) node;
+    switch (cs.dataType) {
+      case ColumnType.INT:
+      case ColumnType.LONG:
+        return Long.parseLong(num.toValue());
+      case ColumnType.FLOAT:
+      case ColumnType.DOUBLE:
+        return Double.doubleToRawLongBits(Double.parseDouble(num.toValue()));
+      default:
+        throw new RuntimeException();
     }
+  }
 
-    @Override
-    public RCOperator visitUnknown(LogicalExpression e, Void value) throws RuntimeException {
-        return new UnknownOperator();
+  private String toStringLiteral(SqlNode node) {
+    assert node instanceof SqlLiteral;
+    return ((SqlLiteral) node).toValue();
+  }
+
+  private LongAndString toValue(Attr attr, SqlNode node) {
+    ColumnSchema cs = toColumn(attr.colName);
+    LongAndString value = new LongAndString();
+    if (cs.dataType == ColumnType.STRING) {
+      value.str = toStringLiteral(node);
+    } else {
+      value.num = toNumLiteral(cs, node);
     }
+    return value;
+  }
 
-    @Override
-    public RCOperator visitBooleanOperator(BooleanOperator op, Void value) throws RuntimeException {
-        List<LogicalExpression> args = op.args;
-        String functionName = op.getName();
-        List<RCOperator> children = new ArrayList<>(args.size());
-        for (LogicalExpression expression : args) {
-            children.add(expression.accept(this, null));
+  private AttrAndValue toAttrAndValue(SqlNode n1, SqlNode n2) {
+    SqlIdentifier idNode;
+    SqlLiteral valueNode;
+    if (n1 instanceof SqlIdentifier && n2 instanceof SqlLiteral) {
+      idNode = (SqlIdentifier) n1;
+      valueNode = (SqlLiteral) n2;
+    } else if (n2 instanceof SqlIdentifier && n1 instanceof SqlLiteral) {
+      idNode = (SqlIdentifier) n2;
+      valueNode = (SqlLiteral) n1;
+    } else {
+      return null;
+    }
+    AttrAndValue av = new AttrAndValue();
+    av.attr = toAttr(idNode);
+    LongAndString value = toValue(av.attr, valueNode);
+    av.num = value.num;
+    av.str = value.str;
+    return av;
+  }
+
+  @Override
+  public RCOperator visit(SqlCall call) {
+    switch (call.getKind()) {
+      case AND:
+        return new And(Trick.mapToList(call.getOperandList(), n -> n.accept(this)));
+      case OR:
+        return new Or(Trick.mapToList(call.getOperandList(), n -> n.accept(this)));
+      case NOT:
+        return new Not(call.operand(0).accept(this));
+      case BETWEEN: {
+        Attr attr = toAttr(call.operand(0));
+        LongAndString v1 = toValue(attr, call.operand(1));
+        LongAndString v2 = toValue(attr, call.operand(2));
+        return new Between(attr, v1.num, v2.num, v1.str, v2.str);
+      }
+      case EQUALS: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new Equal(av.attr, av.num, av.str);
+      }
+      case NOT_EQUALS: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new NotEqual(av.attr, av.num, av.str);
+      }
+      case GREATER_THAN: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new Greater(av.attr, av.num, av.str);
+      }
+      case GREATER_THAN_OR_EQUAL: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new GreaterEqual(av.attr, av.num, av.str);
+      }
+      case IN: {
+        // TODO
+        Attr attr = toAttr(call.operand(0));
+        SqlNode vns = call.operand(1);
+        assert vns instanceof SqlNodeList;
+        SqlNodeList nl = (SqlNodeList) vns;
+        List<LongAndString> values = Trick.mapToList(nl.getList(), n -> toValue(attr, n));
+        long[] nums = new long[values.size()];
+        String[] strs = new String[values.size()];
+        for (int i = 0; i < values.size(); i++) {
+          nums[i] = values.get(i).num;
+          strs[i] = values.get(i).str;
         }
-        switch (functionName) {
-            case "booleanAnd":
-                return new And(children);
-            case "booleanOr":
-                return new Or(children);
-            default:
-                return new UnknownOperator();
-        }
+        return new In(attr, nums, strs);
+      }
+      case LESS_THAN: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new Less(av.attr, av.num, av.str);
+      }
+      case LESS_THAN_OR_EQUAL: {
+        AttrAndValue av = toAttrAndValue(call.operand(0), call.operand(1));
+        return new LessEqual(av.attr, av.num, av.str);
+      }
+      default:
+        return new UnknownOperator(call.toString());
     }
+  }
 
-    @Override
-    public RCOperator visitFunctionCall(FunctionCall call, Void value) throws RuntimeException {
-        if ("not".equals(call.getName())) {
-            return new Not(call.args.get(0).accept(this, null));
-        }
-        return createCmpOperator(call);
-    }
+  @Override
+  public RCOperator visit(SqlNodeList nodeList) {
+    return notSupport(nodeList);
+  }
 
-    private RCOperator createCmpOperator(FunctionCall call) {
-        if (!processor.process(call)) {
-            return new UnknownOperator();
-        }
-        RCOperator operator;
-        String fieldName = processor.getPath().getAsUnescapedPath();
-        switch (processor.getFunctionName()) {
-            case "equal": {
-                operator = new Equal(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            case "not_equal": {
-                operator = new NotEqual(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            case "greater_than_or_equal_to": {
-                operator = new GreaterEqual(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            case "greater_than": {
-                operator = new Greater(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            case "less_than_or_equal_to": {
-                operator = new LessEqual(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            case "less_than": {
-                operator = new Less(
-                        genAttr(processor.getPath()),
-                        processor.getNumValue(),
-                        processor.getStrValue());
-                break;
-            }
-            default:
-                operator = new UnknownOperator();
-                break;
-        }
-        if (processor.isSwitchDirection()) {
-            operator = operator.switchDirection();
-        }
-        return operator;
-    }
+  @Override
+  public RCOperator visit(SqlLiteral literal) {
+    return notSupport(literal);
+  }
 
-    private Attr genAttr(SchemaPath path) {
-        return new Attr(DrillIndexRTable.toColName(groupScan.getScanSpec().getTableName(), path));
-    }
+  @Override
+  public RCOperator visit(SqlIdentifier id) {
+    return notSupport(id);
+  }
+
+  @Override
+  public RCOperator visit(SqlDataTypeSpec type) {
+    return notSupport(type);
+  }
+
+  @Override
+  public RCOperator visit(SqlDynamicParam param) {
+    return notSupport(param);
+  }
+
+  @Override
+  public RCOperator visit(SqlIntervalQualifier intervalQualifier) {
+    return notSupport(intervalQualifier);
+  }
+
+  private RCOperator notSupport(SqlNode node) {
+    return new UnknownOperator(node.toString());
+  }
+
+  private static class LongAndString {
+    public long num;
+
+    public String str;
+  }
+
+  private static class AttrAndValue {
+    public Attr attr;
+
+    public long num;
+
+    public String str;
+  }
 }

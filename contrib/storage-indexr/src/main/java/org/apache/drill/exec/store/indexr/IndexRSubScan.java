@@ -17,15 +17,9 @@
  */
 package org.apache.drill.exec.store.indexr;
 
+import com.fasterxml.jackson.annotation.*;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
-
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.physical.base.AbstractBase;
@@ -42,70 +36,72 @@ import java.util.List;
 
 @JsonTypeName("indexr-segmnets-scan")
 public class IndexRSubScan extends AbstractBase implements SubScan {
-    static final Logger logger = LoggerFactory.getLogger(IndexRSubScan.class);
+  static final Logger logger = LoggerFactory.getLogger(IndexRSubScan.class);
 
-    private final IndexRStoragePlugin plugin;
-    private final IndexRSubScanSpec spec;
-    private final List<SchemaPath> columns;
+  private final IndexRStoragePlugin plugin;
 
-    @JsonCreator
-    public IndexRSubScan(@JacksonInject StoragePluginRegistry registry,
-                         @JsonProperty("pluginConfig") IndexRStoragePluginConfig pluginConfig,
-                         @JsonProperty("spec") IndexRSubScanSpec spec,
-                         @JsonProperty("columns") List<SchemaPath> columns) throws ExecutionSetupException {
-        this((IndexRStoragePlugin) registry.getPlugin(pluginConfig), spec, columns);
-    }
+  private final IndexRSubScanSpec spec;
 
-    public IndexRSubScan(IndexRStoragePlugin plugin, IndexRSubScanSpec spec, List<SchemaPath> columns) {
-        super((String) null);
-        this.plugin = plugin;
-        this.spec = spec;
-        this.columns = columns;
+  private final List<SchemaPath> columns;
 
-        logger.debug("=====================  IndexRSubScan spec - " + spec + " columns - " + columns);
-    }
+  @JsonCreator
+  public IndexRSubScan(@JacksonInject StoragePluginRegistry registry,//
+                       @JsonProperty("pluginConfig") IndexRStoragePluginConfig pluginConfig,//
+                       @JsonProperty("spec") IndexRSubScanSpec spec,//
+                       @JsonProperty("columns") List<SchemaPath> columns) throws ExecutionSetupException {
+    this((IndexRStoragePlugin) registry.getPlugin(pluginConfig), spec, columns);
+  }
 
-    @JsonIgnore
-    public IndexRStoragePlugin getPlugin() {
-        return plugin;
-    }
+  public IndexRSubScan(IndexRStoragePlugin plugin, IndexRSubScanSpec spec, List<SchemaPath> columns) {
+    super((String) null);
+    this.plugin = plugin;
+    this.spec = spec;
+    this.columns = columns;
 
-    @JsonProperty("pluginConfig")
-    public IndexRStoragePluginConfig getPluginConfig() {
-        return plugin.getConfig();
-    }
+    logger.debug("=====================  IndexRSubScan spec - " + spec + " columns - " + columns);
+  }
 
-    @JsonProperty("spec")
-    public IndexRSubScanSpec getSpec() {
-        return spec;
-    }
+  @JsonIgnore
+  public IndexRStoragePlugin getPlugin() {
+    return plugin;
+  }
 
-    @JsonProperty("columns")
-    public List<SchemaPath> getColumns() {
-        return columns;
-    }
+  @JsonProperty("pluginConfig")
+  public IndexRStoragePluginConfig getPluginConfig() {
+    return plugin.getConfig();
+  }
 
-    @Override
-    public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
-        return physicalVisitor.visitSubScan(this, value);
-    }
+  @JsonProperty("spec")
+  public IndexRSubScanSpec getSpec() {
+    return spec;
+  }
 
-    @Override
-    public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-        logger.info("=====================  getNewWithChildren children - " + children);
+  @JsonProperty("columns")
+  public List<SchemaPath> getColumns() {
+    return columns;
+  }
 
-        Preconditions.checkArgument(children.isEmpty());
-        return new IndexRSubScan(plugin, spec, columns);
-    }
+  @Override
+  public <T, X, E extends Throwable> T accept(PhysicalVisitor<T, X, E> physicalVisitor, X value) throws E {
+    return physicalVisitor.visitSubScan(this, value);
+  }
 
-    @Override
-    public int getOperatorType() {
-        return UserBitShared.CoreOperatorType.MOCK_SUB_SCAN_VALUE;
-    }
+  @Override
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+    logger.info("=====================  getNewWithChildren children - " + children);
 
-    @Override
-    public Iterator<PhysicalOperator> iterator() {
-        return Iterators.emptyIterator();
-    }
+    Preconditions.checkArgument(children.isEmpty());
+    return new IndexRSubScan(plugin, spec, columns);
+  }
+
+  @Override
+  public int getOperatorType() {
+    return UserBitShared.CoreOperatorType.MOCK_SUB_SCAN_VALUE;
+  }
+
+  @Override
+  public Iterator<PhysicalOperator> iterator() {
+    return Iterators.emptyIterator();
+  }
 
 }

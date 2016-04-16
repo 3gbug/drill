@@ -17,17 +17,11 @@
  */
 package org.apache.drill.exec.store.indexr;
 
+import com.fasterxml.jackson.annotation.*;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ArrayListMultimap;
 import com.google.common.collect.ListMultimap;
 import com.google.common.collect.Lists;
-
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
-
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.expression.SchemaPath;
 import org.apache.drill.exec.physical.EndpointAffinity;
@@ -49,163 +43,155 @@ import java.util.stream.Collectors;
 
 @JsonTypeName("indexr-scan")
 public class IndexRGroupScan extends AbstractGroupScan {
-    private static final Logger logger = LoggerFactory.getLogger(IndexRGroupScan.class);
+  private static final Logger logger = LoggerFactory.getLogger(IndexRGroupScan.class);
 
-    private final IndexRStoragePlugin plugin;
-    private final IndexRScanSpec scanSpec;
-    private List<SchemaPath> columns;
+  private final IndexRStoragePlugin plugin;
 
-    private ListMultimap<Integer, Integer> assignments;
+  private final IndexRScanSpec scanSpec;
 
-    @JsonCreator
-    public IndexRGroupScan(
-            @JsonProperty("indexrScanSpec") IndexRScanSpec scanSpec,
-            @JsonProperty("storage") IndexRStoragePluginConfig storagePluginConfig,
-            @JsonProperty("columns") List<SchemaPath> columns,
-            @JacksonInject StoragePluginRegistry pluginRegistry
-    ) throws IOException, ExecutionSetupException {
-        this((IndexRStoragePlugin) pluginRegistry.getPlugin(storagePluginConfig), scanSpec, columns);
+  private List<SchemaPath> columns;
+
+  private ListMultimap<Integer, Integer> assignments;
+
+  @JsonCreator
+  public IndexRGroupScan(@JsonProperty("indexrScanSpec") IndexRScanSpec scanSpec,//
+                         @JsonProperty("storage") IndexRStoragePluginConfig storagePluginConfig,//
+                         @JsonProperty("columns") List<SchemaPath> columns,//
+                         @JacksonInject StoragePluginRegistry pluginRegistry//
+  ) throws IOException, ExecutionSetupException {
+    this((IndexRStoragePlugin) pluginRegistry.getPlugin(storagePluginConfig), scanSpec, columns);
+  }
+
+  public IndexRGroupScan(IndexRStoragePlugin plugin, IndexRScanSpec scanSpec, List<SchemaPath> columns) {
+    super((String) null);
+    this.plugin = plugin;
+    this.scanSpec = scanSpec;
+    this.columns = columns;
+
+    logger.debug("===================== Creating new instance!");
+  }
+
+  /**
+   * Private constructor, used for cloning.
+   */
+  private IndexRGroupScan(IndexRGroupScan that) {
+    super(that);
+    this.columns = that.columns;
+    this.scanSpec = that.scanSpec;
+    this.plugin = that.plugin;
+    this.assignments = that.assignments;
+  }
+
+  @Override
+  public IndexRGroupScan clone(List<SchemaPath> columns) {
+    logger.debug("=====================  clone, columns - " + columns);
+
+    IndexRGroupScan newScan = new IndexRGroupScan(this);
+    newScan.columns = columns;
+    return newScan;
+  }
+
+  @JsonIgnore
+  public IndexRStoragePlugin getStoragePlugin() {
+    return plugin;
+  }
+
+  @JsonProperty("storage")
+  public IndexRStoragePluginConfig getStorageConfig() {
+    return plugin.getConfig();
+  }
+
+  @JsonProperty("columns")
+  public List<SchemaPath> getColumns() {
+    return columns;
+  }
+
+  @JsonProperty("indexrScanSpec")
+  public IndexRScanSpec getScanSpec() {
+    return scanSpec;
+  }
+
+  @Override
+  @JsonIgnore
+  public boolean canPushdownProjects(List<SchemaPath> columns) {
+    return true;
+  }
+
+  @Override
+  public int getMaxParallelizationWidth() {
+    return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
+  }
+
+  @Override
+  public int getMinParallelizationWidth() {
+    return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
+  }
+
+  @Override
+  public String getDigest() {
+    return toString();
+  }
+
+  @Override
+  public String toString() {
+    return "IndexRGroupScan [IndexRScanSpec=" + scanSpec + ", columns=" + columns + "]";
+  }
+
+  @Override
+  public ScanStats getScanStats() {
+    // TODO This should be replaced be real row count, to enable fast "select count(*) from table".
+    // Make sure cost is big enough.
+    long recordCount = 1000000 * plugin.context().getBits().size();
+    return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, recordCount, 1, recordCount);
+  }
+
+  @Override
+  public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
+    logger.debug("=====================  getNewWithChildren, columns - " + columns);
+
+    Preconditions.checkArgument(children.isEmpty());
+    return new IndexRGroupScan(this);
+  }
+
+  @Override
+  public List<EndpointAffinity> getOperatorAffinity() {
+    return plugin.context().getBits().stream().map(e -> new EndpointAffinity(e, 1.0)).collect(Collectors.toList());
+  }
+
+  @Override
+  public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
+    logger.debug("=====================  applyAssignments endpoints - " + endpoints);
+
+    Map<DrillbitEndpoint, List<Integer>> endpointToFragments = new HashMap<>();
+    Map<Integer, DrillbitEndpoint> fragmentToEndpoint = new HashMap<>();
+    int minorFragmentId = 0;
+    for (DrillbitEndpoint endpoint : endpoints) {
+      List<Integer> fragmentIds = endpointToFragments.get(endpoint);
+      if (fragmentIds == null) {
+        endpointToFragments.put(endpoint, Lists.newArrayList(minorFragmentId));
+      } else {
+        fragmentIds.add(minorFragmentId);
+      }
+      fragmentToEndpoint.put(minorFragmentId, endpoint);
+
+      minorFragmentId++;
     }
 
-    public IndexRGroupScan(IndexRStoragePlugin plugin, IndexRScanSpec scanSpec, List<SchemaPath> columns) {
-        super((String) null);
-        this.plugin = plugin;
-        this.scanSpec = scanSpec;
-        this.columns = columns;
-
-        logger.debug("===================== Creating new instance!");
+    assignments = ArrayListMultimap.create();
+    for (Map.Entry<Integer, DrillbitEndpoint> e : fragmentToEndpoint.entrySet()) {
+      List<Integer> fragmentIds = endpointToFragments.get(e.getValue());
+      assignments.putAll(e.getKey(), fragmentIds);
     }
+    logger.debug("=====================  applyAssignments assignments - " + assignments);
+  }
 
-    /**
-     * Private constructor, used for cloning.
-     */
-    private IndexRGroupScan(IndexRGroupScan that) {
-        super(that);
-        this.columns = that.columns;
-        this.scanSpec = that.scanSpec;
-        this.plugin = that.plugin;
-        this.assignments = that.assignments;
-    }
+  @Override
+  public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
+    logger.debug("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
 
-    @Override
-    public IndexRGroupScan clone(List<SchemaPath> columns) {
-        logger.debug("=====================  clone, columns - " + columns);
+    List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
 
-        IndexRGroupScan newScan = new IndexRGroupScan(this);
-        newScan.columns = columns;
-        return newScan;
-    }
-
-    @JsonIgnore
-    public boolean hasSetRSFilter() {
-        return scanSpec.getRsFilter() != null;
-    }
-
-    @JsonIgnore
-    public IndexRStoragePlugin getStoragePlugin() {
-        return plugin;
-    }
-
-    @JsonProperty("storage")
-    public IndexRStoragePluginConfig getStorageConfig() {
-        return plugin.getConfig();
-    }
-
-    @JsonProperty("columns")
-    public List<SchemaPath> getColumns() {
-        return columns;
-    }
-
-    @JsonProperty("indexrScanSpec")
-    public IndexRScanSpec getScanSpec() {
-        return scanSpec;
-    }
-
-    @Override
-    @JsonIgnore
-    public boolean canPushdownProjects(List<SchemaPath> columns) {
-        return true;
-    }
-
-    @Override
-    public int getMaxParallelizationWidth() {
-        return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
-    }
-
-    @Override
-    public int getMinParallelizationWidth() {
-        return plugin.context().getBits().size() * plugin.getConfig().getScanThreadsPerNode();
-    }
-
-    @Override
-    public String getDigest() {
-        return toString();
-    }
-
-    @Override
-    public String toString() {
-        return "IndexRGroupScan [IndexRScanSpec=" + scanSpec + ", columns=" + columns + "]";
-    }
-
-    @Override
-    public ScanStats getScanStats() {
-        // TODO This should be replaced be real row count, to enable fast "select count(*) from table".
-        // Make sure cost is big enough.
-        long recordCount = 1000000 * plugin.context().getBits().size();
-        return new ScanStats(ScanStats.GroupScanProperty.NO_EXACT_ROW_COUNT, recordCount, 1, recordCount);
-    }
-
-    @Override
-    public PhysicalOperator getNewWithChildren(List<PhysicalOperator> children) throws ExecutionSetupException {
-        logger.debug("=====================  getNewWithChildren, columns - " + columns);
-
-        Preconditions.checkArgument(children.isEmpty());
-        return new IndexRGroupScan(this);
-    }
-
-    @Override
-    public List<EndpointAffinity> getOperatorAffinity() {
-        return plugin.context().getBits().stream().map(e -> new EndpointAffinity(e, 1.0)).collect(Collectors.toList());
-    }
-
-    @Override
-    public void applyAssignments(List<DrillbitEndpoint> endpoints) throws PhysicalOperatorSetupException {
-        logger.debug("=====================  applyAssignments endpoints - " + endpoints);
-
-        Map<DrillbitEndpoint, List<Integer>> endpointToFragments = new HashMap<>();
-        Map<Integer, DrillbitEndpoint> fragmentToEndpoint = new HashMap<>();
-        int minorFragmentId = 0;
-        for (DrillbitEndpoint endpoint : endpoints) {
-            List<Integer> fragmentIds = endpointToFragments.get(endpoint);
-            if (fragmentIds == null) {
-                endpointToFragments.put(endpoint, Lists.newArrayList(minorFragmentId));
-            } else {
-                fragmentIds.add(minorFragmentId);
-            }
-            fragmentToEndpoint.put(minorFragmentId, endpoint);
-
-            minorFragmentId++;
-        }
-
-        assignments = ArrayListMultimap.create();
-        for (Map.Entry<Integer, DrillbitEndpoint> e : fragmentToEndpoint.entrySet()) {
-            List<Integer> fragmentIds = endpointToFragments.get(e.getValue());
-            assignments.putAll(e.getKey(), fragmentIds);
-        }
-        logger.debug("=====================  applyAssignments assignments - " + assignments);
-    }
-
-    @Override
-    public SubScan getSpecificScan(int minorFragmentId) throws ExecutionSetupException {
-        logger.debug("=====================  getSpecificScan minorFragmentId - " + minorFragmentId);
-
-        List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
-
-        IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(
-                scanSpec.getTableName(),
-                allFragmentsInSameEndpoint.size(),
-                allFragmentsInSameEndpoint.indexOf(minorFragmentId),
-                scanSpec.getRsFilter());
-        return new IndexRSubScan(plugin, subScanSpec, columns);
-    }
+    IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(scanSpec.getTableName(), allFragmentsInSameEndpoint.size(), allFragmentsInSameEndpoint.indexOf(minorFragmentId), scanSpec.getRSFilter());
+    return new IndexRSubScan(plugin, subScanSpec, columns);
+  }
 }

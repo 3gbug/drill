@@ -17,6 +17,8 @@
  */
 package org.apache.drill.exec.store.indexr;
 
+import io.indexr.segment.ColumnSchema;
+import io.indexr.segment.SegmentSchema;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.common.types.TypeProtos;
 import org.apache.drill.common.types.Types;
@@ -28,40 +30,39 @@ import org.apache.drill.exec.record.MaterializedField;
 import org.apache.drill.exec.store.AbstractRecordReader;
 import org.apache.drill.exec.vector.ValueVector;
 
-import io.indexr.segment.ColumnSchema;
-import io.indexr.segment.SegmentSchema;
-
 public class EmptyRecordReader extends AbstractRecordReader {
-    private SegmentSchema schema;
+  private SegmentSchema schema;
 
-    public EmptyRecordReader(SegmentSchema schema) {
-        this.schema = schema;
+  public EmptyRecordReader(SegmentSchema schema) {
+    this.schema = schema;
+  }
+
+  @Override
+  public void setup(OperatorContext context, OutputMutator output) throws ExecutionSetupException {
+    for (ColumnSchema cs : schema.columns) {
+      addFeild(cs.dataType, cs.name, output);
     }
+  }
 
-    @Override
-    public void setup(OperatorContext context, OutputMutator output) throws ExecutionSetupException {
-        for (ColumnSchema cs : schema.columns) {
-            addFeild(cs.dataType, cs.name, output);
-        }
+  @SuppressWarnings("unchecked")
+  private void addFeild(byte dataType, String name, OutputMutator output) {
+    TypeProtos.MinorType minorType = DrillIndexRTable.parseMinorType(dataType);
+    TypeProtos.MajorType majorType = Types.required(minorType);
+    MaterializedField field = MaterializedField.create(name, majorType);
+    final Class<? extends ValueVector> clazz = (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(minorType, majorType.getMode());
+    try {
+      output.addField(field, clazz).allocateNew();
+    } catch (SchemaChangeException e) {
+      throw new RuntimeException(e);
     }
+  }
 
-    @SuppressWarnings("unchecked")
-    private void addFeild(byte dataType, String name, OutputMutator output) {
-        TypeProtos.MinorType minorType = DrillIndexRTable.parseMinorType(dataType);
-        TypeProtos.MajorType majorType = Types.required(minorType);
-        MaterializedField field = MaterializedField.create(name, majorType);
-        final Class<? extends ValueVector> clazz = (Class<? extends ValueVector>) TypeHelper.getValueVectorClass(
-                minorType, majorType.getMode());
-        try {
-            output.addField(field, clazz).allocateNew();
-        } catch (SchemaChangeException e) {
-            throw new RuntimeException(e);
-        }
-    }
+  @Override
+  public int next() {
+    return 0;
+  }
 
-    @Override
-    public int next() {return 0;}
-
-    @Override
-    public void close() throws Exception {}
+  @Override
+  public void close() throws Exception {
+  }
 }

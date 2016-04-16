@@ -17,11 +17,9 @@
  */
 package org.apache.drill.exec.store.indexr;
 
-import com.google.common.collect.Sets;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
+import com.google.common.collect.Sets;
 import org.apache.calcite.plan.RelOptRule;
 import org.apache.calcite.schema.SchemaPlus;
 import org.apache.drill.common.JSONOptions;
@@ -41,98 +39,98 @@ import java.util.List;
 import java.util.Set;
 
 public class IndexRStoragePlugin extends AbstractStoragePlugin {
-    private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
-    private static final String ENABLE_RSFILTER = "planner.indexr.enable_rsfilter";
+  private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
 
-    private final IndexRStoragePluginConfig engineConfig;
-    private final DrillbitContext context;
-    private final String pluginName;
+  private static final String ENABLE_RSFILTER = "planner.indexr.enable_rsfilter";
 
-    private final IndexRSchemaFactory schemaFactory;
-    private final FakeSegmentManager segmentManager;
+  private final IndexRStoragePluginConfig engineConfig;
 
-    public IndexRStoragePlugin(
-            IndexRStoragePluginConfig engineConfig,
-            DrillbitContext context,
-            String name) {
-        this.engineConfig = engineConfig;
-        this.context = context;
-        this.pluginName = name;
+  private final DrillbitContext context;
 
-        this.schemaFactory = new IndexRSchemaFactory(this);
-        try {
-            this.segmentManager = new FakeSegmentManager(engineConfig.getDataDir());
-        } catch (IOException e) {
-            log.warn("", e);
-            throw new RuntimeException(e);
-        }
+  private final String pluginName;
+
+  private final IndexRSchemaFactory schemaFactory;
+
+  private final FakeSegmentManager segmentManager;
+
+  public IndexRStoragePlugin(IndexRStoragePluginConfig engineConfig, DrillbitContext context, String name) {
+    this.engineConfig = engineConfig;
+    this.context = context;
+    this.pluginName = name;
+
+    this.schemaFactory = new IndexRSchemaFactory(this);
+    try {
+      this.segmentManager = new FakeSegmentManager(engineConfig.getDataDir());
+    } catch (IOException e) {
+      log.warn("", e);
+      throw new RuntimeException(e);
     }
+  }
 
-    @Override
-    public IndexRStoragePluginConfig getConfig() {
-        return engineConfig;
+  @Override
+  public IndexRStoragePluginConfig getConfig() {
+    return engineConfig;
+  }
+
+  @Override
+  public boolean supportsRead() {
+    return true;
+  }
+
+  @Override
+  public boolean supportsWrite() {
+    return false;
+  }
+
+  public DrillbitContext context() {
+    return context;
+  }
+
+  public String pluginName() {
+    return pluginName;
+  }
+
+  public FakeSegmentManager segmentManager() {
+    return segmentManager;
+  }
+
+  @Override
+  public void start() throws IOException {
+    super.start();
+  }
+
+  @Override
+  public void close() throws Exception {
+    super.close();
+  }
+
+  @Override
+  public Set<? extends RelOptRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
+    boolean enableRSFilter = engineConfig.getEnableRSFilter();
+    log.debug("=====================  getPhysicalOptimizerRules enableRSFilter - {}", enableRSFilter);
+    if (enableRSFilter) {
+      return Sets.newHashSet(IndexRPushDownRSFilter.Scan);
+    } else {
+      return Collections.emptySet();
     }
+  }
 
-    @Override
-    public boolean supportsRead() {
-        return true;
-    }
+  @Override
+  public void registerSchemas(SchemaConfig schemaConfig, SchemaPlus parent) throws IOException {
+    schemaFactory.registerSchemas(schemaConfig, parent);
+  }
 
-    @Override
-    public boolean supportsWrite() {
-        return false;
-    }
+  @Override
+  public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection) throws IOException {
+    return getPhysicalScan(userName, selection, GroupScan.ALL_COLUMNS);
+  }
 
-    public DrillbitContext context() {
-        return context;
-    }
+  @Override
+  public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection, List<SchemaPath> columns) throws IOException {
+    log.debug("=====================  getPhysicalScan selection - " + selection);
 
-    public String pluginName() {
-        return pluginName;
-    }
-
-    public FakeSegmentManager segmentManager() {
-        return segmentManager;
-    }
-
-    @Override
-    public void start() throws IOException {
-        super.start();
-    }
-
-    @Override
-    public void close() throws Exception {
-        super.close();
-    }
-
-    @Override
-    public Set<? extends RelOptRule> getPhysicalOptimizerRules(OptimizerRulesContext optimizerRulesContext) {
-        boolean enableRSFilter = engineConfig.getEnableRSFilter();
-        log.debug("=====================  getPhysicalOptimizerRules enableRSFilter - {}", enableRSFilter);
-        if (enableRSFilter) {
-            return Sets.newHashSet(
-                    IndexRPushDownRSFilter.MatchFilterScan,
-                    IndexRPushDownRSFilter.MatchFilterProjectScan);
-        } else {
-            return Collections.emptySet();
-        }
-    }
-
-    @Override
-    public void registerSchemas(SchemaConfig schemaConfig, SchemaPlus parent) throws IOException {
-        schemaFactory.registerSchemas(schemaConfig, parent);
-    }
-
-    @Override
-    public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection) throws IOException {
-        return getPhysicalScan(userName, selection, GroupScan.ALL_COLUMNS);
-    }
-
-    @Override
-    public AbstractGroupScan getPhysicalScan(String userName, JSONOptions selection, List<SchemaPath> columns) throws IOException {
-        log.debug("=====================  getPhysicalScan selection - " + selection);
-
-        IndexRScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<IndexRScanSpec>() {});
-        return new IndexRGroupScan(this, scanSpec, columns);
-    }
+    IndexRScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<IndexRScanSpec>() {
+    });
+    return new IndexRGroupScan(this, scanSpec, columns);
+  }
 }

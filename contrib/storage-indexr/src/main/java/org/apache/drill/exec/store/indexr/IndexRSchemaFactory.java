@@ -30,54 +30,54 @@ import java.util.Collections;
 import java.util.Set;
 
 public class IndexRSchemaFactory implements SchemaFactory {
-    private static final Logger log = LoggerFactory.getLogger(IndexRSchemaFactory.class);
+  private static final Logger log = LoggerFactory.getLogger(IndexRSchemaFactory.class);
 
-    private final IndexRStoragePlugin plugin;
+  private final IndexRStoragePlugin plugin;
 
-    public IndexRSchemaFactory(IndexRStoragePlugin plugin) {
-        this.plugin = plugin;
+  public IndexRSchemaFactory(IndexRStoragePlugin plugin) {
+    this.plugin = plugin;
+  }
+
+  @Override
+  public void registerSchemas(SchemaConfig schemaConfig, SchemaPlus parent) throws IOException {
+    parent.add(plugin.pluginName(), new IndexRTables(plugin.pluginName()));
+  }
+
+  class IndexRTables extends AbstractSchema {
+
+    public IndexRTables(String name) {
+      super(Collections.<String>emptyList(), name);
     }
 
     @Override
-    public void registerSchemas(SchemaConfig schemaConfig, SchemaPlus parent) throws IOException {
-        parent.add(plugin.pluginName(), new IndexRTables(plugin.pluginName()));
+    public String getTypeName() {
+      return IndexRStoragePluginConfig.NAME;
     }
 
-    class IndexRTables extends AbstractSchema {
-
-        public IndexRTables(String name) {
-            super(Collections.<String>emptyList(), name);
-        }
-
-        @Override
-        public String getTypeName() {
-            return IndexRStoragePluginConfig.NAME;
-        }
-
-        @Override
-        public Set<String> getSubSchemaNames() {
-            return Collections.emptySet();
-        }
-
-        @Override
-        public Table getTable(String name) {
-            IndexRScanSpec spec = new IndexRScanSpec(name);
-            try {
-                return plugin.segmentManager().getTable(plugin, name, spec);
-            } catch (IOException e) {
-                log.warn(String.format("Find table [%s] error!", name), e);
-            }
-            return null;
-        }
-
-        @Override
-        public Set<String> getTableNames() {
-            try {
-                return plugin.segmentManager().tableNames();
-            } catch (IOException e) {
-                log.warn(String.format("Find table [%s] error!", name), e);
-            }
-            return Collections.emptySet();
-        }
+    @Override
+    public Set<String> getSubSchemaNames() {
+      return Collections.emptySet();
     }
+
+    @Override
+    public Table getTable(String name) {
+      IndexRScanSpec spec = new IndexRScanSpec(name);
+      try {
+        return plugin.segmentManager().getTable(plugin, name, spec);
+      } catch (IOException e) {
+        log.warn(String.format("Find table [%s] error!", name), e);
+      }
+      return null;
+    }
+
+    @Override
+    public Set<String> getTableNames() {
+      try {
+        return plugin.segmentManager().tableNames();
+      } catch (IOException e) {
+        log.warn(String.format("Find table [%s] error!", name), e);
+      }
+      return Collections.emptySet();
+    }
+  }
 }
