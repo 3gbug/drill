@@ -24,13 +24,10 @@ import io.indexr.segment.rc.RCOperator;
 public class IndexRSubScanSpec {
   @JsonProperty("tableName")
   public final String tableName;
-
   @JsonProperty("parallelization")
   public final Integer parallelization;
-
   @JsonProperty("parallelizationIndex")
   public final Integer parallelizationIndex;
-
   @JsonProperty("rsFilter")
   public final RCOperator rsFilter;
 

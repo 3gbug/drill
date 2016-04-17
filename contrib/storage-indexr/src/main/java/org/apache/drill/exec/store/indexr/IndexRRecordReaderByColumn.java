@@ -43,13 +43,9 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
   private static final int TARGET_RECORD_COUNT = DataPack.MAX_COUNT >>> 2; // One quarter of full pack.
 
   private BytePiece bytePiece = new BytePiece();
-
   private ByteBuffer byteBuffer = MemoryUtil.getHollowDirectByteBuffer();
-
   private Column[] columns;
-
   private byte[] packRSResults;
-
   private int curPackId = 0;
 
   /**

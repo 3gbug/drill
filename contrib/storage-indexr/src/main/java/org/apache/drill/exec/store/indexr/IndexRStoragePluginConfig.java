@@ -31,9 +31,7 @@ public class IndexRStoragePluginConfig extends StoragePluginConfigBase {
   public static final String NAME = "indexr";
 
   private final String dataDir;
-
   private final Integer scanThreadsPerNode;
-
   private final boolean enableRSFilter;
 
   @JsonCreator

@@ -40,17 +40,12 @@ import java.util.Set;
 
 public class IndexRStoragePlugin extends AbstractStoragePlugin {
   private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
-
   private static final String ENABLE_RSFILTER = "planner.indexr.enable_rsfilter";
 
   private final IndexRStoragePluginConfig engineConfig;
-
   private final DrillbitContext context;
-
   private final String pluginName;
-
   private final IndexRSchemaFactory schemaFactory;
-
   private final FakeSegmentManager segmentManager;
 
   public IndexRStoragePlugin(IndexRStoragePluginConfig engineConfig, DrillbitContext context, String name) {

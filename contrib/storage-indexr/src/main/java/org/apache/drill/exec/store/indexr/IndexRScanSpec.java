@@ -24,9 +24,7 @@ import io.indexr.segment.rc.RCOperator;
 
 public class IndexRScanSpec {
   private final String tableName;
-
   private RCOperator rsFilter;
-
   private RCOperator inRSFilter;
 
   @JsonCreator

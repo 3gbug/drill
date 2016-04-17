@@ -46,11 +46,8 @@ public class IndexRGroupScan extends AbstractGroupScan {
   private static final Logger logger = LoggerFactory.getLogger(IndexRGroupScan.class);
 
   private final IndexRStoragePlugin plugin;
-
   private final IndexRScanSpec scanSpec;
-
   private List<SchemaPath> columns;
-
   private ListMultimap<Integer, Integer> assignments;
 
   @JsonCreator

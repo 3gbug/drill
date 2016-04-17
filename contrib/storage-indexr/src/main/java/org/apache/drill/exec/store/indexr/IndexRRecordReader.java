@@ -43,11 +43,8 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
   private static final Logger log = LoggerFactory.getLogger(IndexRRecordReader.class);
 
   final String tableName;
-
   final Segment segment;
-
   final RCOperator rsFilter;
-
   ProjectedColumnInfo[] projectedColumnInfos;
 
   static class ProjectedColumnInfo {
