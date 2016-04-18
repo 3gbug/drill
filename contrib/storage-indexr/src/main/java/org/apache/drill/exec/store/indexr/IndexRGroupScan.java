@@ -47,6 +47,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
   private final IndexRStoragePlugin plugin;
   private final IndexRScanSpec scanSpec;
+  private final String scanId;
   private List<SchemaPath> columns;
   private ListMultimap<Integer, Integer> assignments;
 
@@ -54,16 +55,18 @@ public class IndexRGroupScan extends AbstractGroupScan {
   public IndexRGroupScan(@JsonProperty("indexrScanSpec") IndexRScanSpec scanSpec,//
                          @JsonProperty("storage") IndexRStoragePluginConfig storagePluginConfig,//
                          @JsonProperty("columns") List<SchemaPath> columns,//
+                         @JsonProperty("scanId") String scanId,//
                          @JacksonInject StoragePluginRegistry pluginRegistry//
   ) throws IOException, ExecutionSetupException {
-    this((IndexRStoragePlugin) pluginRegistry.getPlugin(storagePluginConfig), scanSpec, columns);
+    this((IndexRStoragePlugin) pluginRegistry.getPlugin(storagePluginConfig), scanSpec, columns, scanId);
   }
 
-  public IndexRGroupScan(IndexRStoragePlugin plugin, IndexRScanSpec scanSpec, List<SchemaPath> columns) {
+  public IndexRGroupScan(IndexRStoragePlugin plugin, IndexRScanSpec scanSpec, List<SchemaPath> columns, String scanId) {
     super((String) null);
     this.plugin = plugin;
     this.scanSpec = scanSpec;
     this.columns = columns;
+    this.scanId = scanId;
 
     logger.debug("===================== Creating new instance!");
   }
@@ -73,6 +76,7 @@ public class IndexRGroupScan extends AbstractGroupScan {
    */
   private IndexRGroupScan(IndexRGroupScan that) {
     super(that);
+    this.scanId = that.scanId;
     this.columns = that.columns;
     this.scanSpec = that.scanSpec;
     this.plugin = that.plugin;
@@ -106,6 +110,11 @@ public class IndexRGroupScan extends AbstractGroupScan {
   @JsonProperty("indexrScanSpec")
   public IndexRScanSpec getScanSpec() {
     return scanSpec;
+  }
+
+  @JsonProperty("scanId")
+  public String getScanId() {
+    return scanId;
   }
 
   @Override
@@ -188,7 +197,12 @@ public class IndexRGroupScan extends AbstractGroupScan {
 
     List<Integer> allFragmentsInSameEndpoint = assignments.get(minorFragmentId);
 
-    IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(scanSpec.getTableName(), allFragmentsInSameEndpoint.size(), allFragmentsInSameEndpoint.indexOf(minorFragmentId), scanSpec.getRSFilter());
+    IndexRSubScanSpec subScanSpec = new IndexRSubScanSpec(//
+      scanId,//
+      scanSpec.getTableName(),//
+      allFragmentsInSameEndpoint.size(),//
+      allFragmentsInSameEndpoint.indexOf(minorFragmentId),//
+      scanSpec.getRSFilter());
     return new IndexRSubScan(plugin, subScanSpec, columns);
   }
 }

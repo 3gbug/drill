@@ -39,9 +39,7 @@ public class IndexRSubScan extends AbstractBase implements SubScan {
   static final Logger logger = LoggerFactory.getLogger(IndexRSubScan.class);
 
   private final IndexRStoragePlugin plugin;
-
   private final IndexRSubScanSpec spec;
-
   private final List<SchemaPath> columns;
 
   @JsonCreator

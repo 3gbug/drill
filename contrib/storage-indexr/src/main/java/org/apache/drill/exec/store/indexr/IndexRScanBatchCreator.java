@@ -19,6 +19,8 @@ package org.apache.drill.exec.store.indexr;
 
 import com.google.common.base.Preconditions;
 import io.indexr.segment.Segment;
+import io.indexr.segment.helper.SegmentAssigner;
+import jodd.cache.LRUCache;
 import org.apache.drill.common.exceptions.ExecutionSetupException;
 import org.apache.drill.exec.ops.FragmentContext;
 import org.apache.drill.exec.physical.impl.BatchCreator;
@@ -30,46 +32,50 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
   static final Logger logger = LoggerFactory.getLogger(IndexRScanBatchCreator.class);
 
+  private LRUCache<String, Map<Integer, List<SegmentAssigner.Assignment>>> assigmentCache = new LRUCache<String, Map<Integer, List<SegmentAssigner.Assignment>>>(64, TimeUnit.MINUTES.toMillis(1));
+
   @Override
   public ScanBatch getBatch(FragmentContext context, IndexRSubScan subScan, List<RecordBatch> children) throws ExecutionSetupException {
     logger.debug("=====================  getBatch subScan.getSpec - " + subScan.getSpec());
-
     Preconditions.checkArgument(children.isEmpty());
 
     FakeSegmentManager segmentManager = subScan.getPlugin().segmentManager();
     IndexRSubScanSpec spec = subScan.getSpec();
-    List<Segment> segments = segmentManager.getSegmentList(spec.tableName);
-
-    List<Segment> toScanSegments = new ArrayList<>();
-    if (spec.parallelization >= segments.size()) {
-      if (spec.parallelizationIndex >= segments.size()) {
-        logger.warn("subScan with spec {} have not record reader to assign", spec);
-      } else {
-        toScanSegments.add(segments.get(spec.parallelizationIndex));
+    // TODO This should refactor for production used!
+    Map<Integer, List<SegmentAssigner.Assignment>> assigmentMap = assigmentCache.get(spec.scanId);
+    if (assigmentMap == null) {
+      List<Segment> segments = segmentManager.getSegmentList(spec.tableName);
+      List<Segment> solidified = new ArrayList<>(segments.size());
+      for (Segment segment : segments) {
+        solidified.add(segment.solidify());
       }
-    } else {
-      double assignScale = ((double) segments.size() / spec.parallelization);
-      toScanSegments = segments.subList(//
-        (int) (spec.parallelizationIndex * assignScale), //
-        (int) ((spec.parallelizationIndex + 1) * assignScale));
+      assigmentMap = SegmentAssigner.assignBalance(spec.parallelization, solidified, spec.rsFilter);
+      assigmentCache.put(spec.scanId, assigmentMap);
     }
 
-    logger.debug("==========toScanSegments: {}", toScanSegments);
+    List<SegmentAssigner.Assignment> assignmentList = assigmentMap.get(spec.parallelizationIndex);
 
     List<RecordReader> assignReaders = new ArrayList<>();
-    if (toScanSegments.isEmpty()) {
-      // Make drill happy.
+    if (assignmentList == null || assignmentList.isEmpty()) {
+      logger.warn("==========subScan with spec {} have not record reader to assign", spec);
       assignReaders.add(new EmptyRecordReader(segmentManager.getSchema(spec.tableName)));
     } else {
-      for (Segment segment : toScanSegments) {
-        assignReaders.add(IndexRRecordReader.create(spec.tableName, //
-          segment.solidify(), //
+      logger.debug("==========assignmentList: {}", assignmentList);
+      for (SegmentAssigner.Assignment assignment : assignmentList) {
+        assignReaders.add(IndexRRecordReader.create(//
+          spec.tableName, //
+          assignment.segment, //
           subScan.getColumns(), //
-          context, spec.rsFilter));
+          context, //
+          spec.rsFilter,//
+          assignment.fromPack,//
+          assignment.packCount));
       }
     }
     return new ScanBatch(subScan, context, assignReaders.iterator());

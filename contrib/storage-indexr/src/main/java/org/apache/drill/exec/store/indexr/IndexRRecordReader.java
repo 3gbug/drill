@@ -82,10 +82,12 @@ public abstract class IndexRRecordReader extends AbstractRecordReader {
                                           Segment segment, //
                                           List<SchemaPath> projectColumns,//
                                           FragmentContext context,//
-                                          RCOperator rsFilter) {
+                                          RCOperator rsFilter,//
+                                          int fromPack,//
+                                          int packCount) {
     return segment.column(0) == null //
       ? new IndexRRecordReaderByRow(tableName, segment, projectColumns, context, rsFilter) //
-      : new IndexRRecordReaderByColumn(tableName, segment, projectColumns, context, rsFilter);
+      : new IndexRRecordReaderByColumn(tableName, segment, projectColumns, context, rsFilter, fromPack, packCount);
   }
 
   @SuppressWarnings("unchecked")

@@ -46,20 +46,22 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
   private ByteBuffer byteBuffer = MemoryUtil.getHollowDirectByteBuffer();
   private Column[] columns;
   private byte[] packRSResults;
-  private int curPackId = 0;
+  private int curPackId;
+  private int toPackId;
 
   /**
    * Create a new IndexRRecordReaderByColumn instance.
-   * <p/>
-   * //* @param fromPackId include
-   * //* @param toPackId   exclude
    */
   public IndexRRecordReaderByColumn(String tableName,//
                                     Segment segment,//
                                     List<SchemaPath> projectColumns,//
                                     FragmentContext context,//
-                                    RCOperator rsFilter) {
+                                    RCOperator rsFilter,//
+                                    int fromPack,//
+                                    int packCount) {
     super(tableName, segment, projectColumns, context, rsFilter);
+    this.curPackId = fromPack;
+    this.toPackId = fromPack + packCount;
   }
 
   @Override
@@ -76,7 +78,7 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
         packRSResults[i] = RSValue.Some;
       }
     } else {
-      if (!rsFilter.roughCheckOnColumn(segment)) {
+      if (rsFilter.roughCheckOnColumn(segment) == RSValue.None) {
         log.debug("========= rs filter ignore segment {}", segment.name());
       } else {
         packRSResults = rsFilter.roughCheckOnPack(segment);
@@ -90,7 +92,7 @@ public class IndexRRecordReaderByColumn extends IndexRRecordReader {
       return 0;
     }
     int rowCount = 0;
-    while (curPackId < packRSResults.length && rowCount < TARGET_RECORD_COUNT) {
+    while (curPackId < toPackId && rowCount < TARGET_RECORD_COUNT) {
       byte rsValue = packRSResults[curPackId];
       switch (rsValue) {
         case RSValue.None:

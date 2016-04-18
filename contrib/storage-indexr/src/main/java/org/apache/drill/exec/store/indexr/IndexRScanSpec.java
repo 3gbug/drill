@@ -25,7 +25,6 @@ import io.indexr.segment.rc.RCOperator;
 public class IndexRScanSpec {
   private final String tableName;
   private RCOperator rsFilter;
-  private RCOperator inRSFilter;
 
   @JsonCreator
   public IndexRScanSpec(@JsonProperty("tableName") String tableName) {
@@ -45,16 +44,6 @@ public class IndexRScanSpec {
   @JsonSetter("rsFilter")
   public void setRSFilter(RCOperator rsFilter) {
     this.rsFilter = rsFilter;
-  }
-
-  @JsonSetter("inRSFilter")
-  public RCOperator getInRSFilter() {
-    return inRSFilter;
-  }
-
-  @JsonSetter("inRSFilter")
-  public void setInRSFilter(RCOperator inRSFilter) {
-    this.inRSFilter = inRSFilter;
   }
 
   @Override

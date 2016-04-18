@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Set;
+import java.util.UUID;
 
 public class IndexRStoragePlugin extends AbstractStoragePlugin {
   private static final Logger log = LoggerFactory.getLogger(IndexRStoragePlugin.class);
@@ -126,6 +127,6 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
 
     IndexRScanSpec scanSpec = selection.getListWith(new ObjectMapper(), new TypeReference<IndexRScanSpec>() {
     });
-    return new IndexRGroupScan(this, scanSpec, columns);
+    return new IndexRGroupScan(this, scanSpec, columns, UUID.randomUUID().toString());
   }
 }

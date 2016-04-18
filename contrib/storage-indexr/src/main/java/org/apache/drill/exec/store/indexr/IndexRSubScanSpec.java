@@ -22,6 +22,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.indexr.segment.rc.RCOperator;
 
 public class IndexRSubScanSpec {
+  @JsonProperty("scanId")
+  public final String scanId;
   @JsonProperty("tableName")
   public final String tableName;
   @JsonProperty("parallelization")
@@ -32,10 +34,12 @@ public class IndexRSubScanSpec {
   public final RCOperator rsFilter;
 
   @JsonCreator
-  public IndexRSubScanSpec(@JsonProperty("tableName") String tableName, //
+  public IndexRSubScanSpec(@JsonProperty("scanId") String scanId, //
+                           @JsonProperty("tableName") String tableName, //
                            @JsonProperty("parallelization") Integer parallelization, //
                            @JsonProperty("parallelizationIndex") Integer parallelizationIndex,//
                            @JsonProperty("rsFilter") RCOperator rsFilter) {
+    this.scanId = scanId;
     this.tableName = tableName;
     this.parallelization = parallelization;
     this.parallelizationIndex = parallelizationIndex;
@@ -45,7 +49,8 @@ public class IndexRSubScanSpec {
   @Override
   public String toString() {
     return "IndexRSubScanSpec{" +
-      "tableName='" + tableName + '\'' +
+      "scanId='" + scanId + '\'' +
+      ", tableName='" + tableName + '\'' +
       ", parallelization=" + parallelization +
       ", parallelizationIndex=" + parallelizationIndex +
       ", rsFilter=" + rsFilter +
