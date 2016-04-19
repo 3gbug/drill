@@ -2,8 +2,10 @@
   "storage":{
     indexr : {
       type:"indexr",
-      dataDir: "/data/indexr/segments",
-      enabled: false
+      enabled: true,
+      enableRSFilter: true,
+      scanThreadsPerNode: 4,
+      dataDir: "/data/indexr/segments"
     }
   }
 }
