@@ -1,0 +1,17 @@
+{
+  "server": {
+    "dataDir": "/data/indexr"
+  },
+  "manager": {
+    "capacity": 500000
+  },
+  "monitor": {
+    "watchInstanceNode": "/indexr/instances",
+    "watchSegmentNode": "/indexr/segments",
+    "zkConnect": "127.0.0.1:2181",
+    "baseSleepTimeMs": 1000,
+    "maxRetries": 3,
+    "segmentTime": 3000
+  }
+}
+
