@@ -35,7 +35,6 @@ public class ServerSegmentManager implements SegmentManager {
   private ServerInstance serverInstance;
 
   public ServerSegmentManager() throws IOException {
-
     IndexrConfig config = IndexrConfig.fromResource("config.json");
     serverInstance = ServerBuilder.buildServer(config);
   }
