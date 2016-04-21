@@ -45,7 +45,7 @@ public class IndexRScanBatchCreator implements BatchCreator<IndexRSubScan> {
     logger.debug("=====================  getBatch subScan.getSpec - " + subScan.getSpec());
     Preconditions.checkArgument(children.isEmpty());
 
-    FakeSegmentManager segmentManager = subScan.getPlugin().segmentManager();
+    SegmentManager segmentManager = subScan.getPlugin().segmentManager();
     IndexRSubScanSpec spec = subScan.getSpec();
     // TODO This should refactor for production used!
     Map<Integer, List<SegmentAssigner.Assignment>> assigmentMap = assigmentCache.get(spec.scanId);

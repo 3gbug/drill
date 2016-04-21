@@ -47,7 +47,7 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
   private final DrillbitContext context;
   private final String pluginName;
   private final IndexRSchemaFactory schemaFactory;
-  private final FakeSegmentManager segmentManager;
+  private final SegmentManager segmentManager;
 
   public IndexRStoragePlugin(IndexRStoragePluginConfig engineConfig, DrillbitContext context, String name) {
     this.engineConfig = engineConfig;
@@ -56,7 +56,7 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
 
     this.schemaFactory = new IndexRSchemaFactory(this);
     try {
-      this.segmentManager = new FakeSegmentManager(engineConfig.getDataDir());
+      this.segmentManager = new ServerSegmentManager();
     } catch (IOException e) {
       log.warn("", e);
       throw new RuntimeException(e);
@@ -86,18 +86,20 @@ public class IndexRStoragePlugin extends AbstractStoragePlugin {
     return pluginName;
   }
 
-  public FakeSegmentManager segmentManager() {
+  public SegmentManager segmentManager() {
     return segmentManager;
   }
 
   @Override
   public void start() throws IOException {
     super.start();
+    segmentManager.start();
   }
 
   @Override
   public void close() throws Exception {
     super.close();
+    segmentManager.close();
   }
 
   @Override
